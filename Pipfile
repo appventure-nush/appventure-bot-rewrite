@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 nextcord = {extras = ["speed"], version = "*"}
 uvloop = "*"
+peewee = "*"
 
 [dev-packages]
 python-dotenv = "*"
@@ -13,6 +14,7 @@ hvac = "*"
 isort = "*"
 black = "*"
 flake8 = "*"
+types-peewee = "*"
 
 [requires]
 python_version = "3.10"
