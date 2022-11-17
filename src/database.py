@@ -1,10 +1,10 @@
 from datetime import date
 from typing import Collection, Optional
 
-from peewee import BigIntegerField, CharField, Model, SqliteDatabase, fn, Cast, SQL
+from peewee import BigIntegerField, Cast, CharField, Model, SqliteDatabase, fn
 from playhouse.hybrid import hybrid_property
 
-db = SqliteDatabase("../secrets/data.db")  # TODO: modify this when deploying
+db = SqliteDatabase("./storage/data.db")  # TODO: modify this when deploying
 
 
 class Members(Model):
@@ -17,7 +17,7 @@ class Members(Model):
         database = db
 
     @hybrid_property
-    def year(self):
+    def year(self):  # type: ignore
         join_year = int(self.email[1:3])
         join_level = int(self.email[3])
         return (date.today().year - join_year) % 100 + join_level
@@ -28,7 +28,7 @@ class Members(Model):
         # note: sql is 1-indexed
         join_year = Cast(fn.SUBSTR(cls.email, 2, 2), "INT")
         join_level = Cast(fn.SUBSTR(cls.email, 4, 1), "INT")
-        curr_year = Cast(fn.STRFTIME("%Y", 'now'), "INT")
+        curr_year = Cast(fn.STRFTIME("%Y", "now"), "INT")
         year = fn.MOD(curr_year - join_year, 100) + join_level
         return year
 

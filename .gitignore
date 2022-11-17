@@ -2,4 +2,6 @@ src/.env
 
 secrets/
 
+storage/
+
 **/__pycache__

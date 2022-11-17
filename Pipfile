@@ -7,6 +7,7 @@ name = "pypi"
 nextcord = {extras = ["speed"], version = "*"}
 uvloop = "*"
 peewee = "*"
+orjson = "*"
 
 [dev-packages]
 python-dotenv = "*"

@@ -1,12 +1,12 @@
 import logging
 
 import uvloop
+from nextcord import Intents
 from nextcord.ext.commands import Bot
 
-from cogs.member_commands import MemberCommands
+from cogs import Cache, MemberManagement, Nick
 from config import config
 
-from nextcord import Intents
 
 def main() -> None:
     uvloop.install()
@@ -18,7 +18,9 @@ def main() -> None:
 
     bot = Bot(intents=intents)
 
-    bot.add_cog(MemberCommands(bot))
+    bot.add_cog(cache := Cache(bot))
+    bot.add_cog(MemberManagement(bot, cache))
+    bot.add_cog(Nick(bot, cache))
 
     bot.run(config.discord_token)
 
