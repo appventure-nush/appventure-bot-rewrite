@@ -35,22 +35,20 @@ class MemberCommands(Cog):
 
         file.seek(0)
 
-        await interaction.response.send_message(content=f"Here you go! ({len(members)} members)", file=File(fp=file, filename="members.csv"))
+        await interaction.response.send_message(content=f"Here you go! ({len(members)} members)", file=File(fp=file, filename="members.csv"))  # type: ignore
 
         file.close()
 
     @members.subcommand(description="Give alumni role to those graduating")
     async def refresh(self, interaction: Interaction) -> None:
-        await interaction.response.defer(with_message=True)
-
         guild = self.bot.get_guild(config.guild_id)
         if not guild:
-            await interaction.followup.send(content=f"Could not find server, is GUILD_ID correct?")
+            await interaction.response.send_message(content=f"Could not find server, is GUILD_ID correct?")
             return
 
         role = guild.get_role(config.alumni_role)
         if not role:
-            await interaction.followup.send(content=f"Could not find alumni role, is ALUMNI_ROLE correct?")
+            await interaction.response.send_message(content=f"Could not find alumni role, is ALUMNI_ROLE correct?")
             return
 
         new_alumni = database.get_graduated()
@@ -60,19 +58,13 @@ class MemberCommands(Cog):
             discord_id = member.discord_id
             if not (discord_id): continue
 
-            try:
-                profile = await guild.fetch_member(discord_id)
-            except NotFound:
-                continue
-            except Exception as e:
-                await interaction.followup.send(content=f"Error: {e}", ephemeral=True)
-                return
+            profile = guild.get_member(discord_id)  # type: ignore
 
-            if profile.get_role(config.alumni_role):
+            if (not profile) or (profile.get_role(config.alumni_role)):
                 continue
         
             await profile.add_roles(role)
             updated += 1
         
-        await interaction.followup.send(content=f"Done! {updated} people graduated.")
+        await interaction.response.send_message(content=f"Done! {updated} people graduated.")
 

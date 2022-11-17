@@ -6,12 +6,17 @@ from nextcord.ext.commands import Bot
 from cogs.member_commands import MemberCommands
 from config import config
 
+from nextcord import Intents
+
 def main() -> None:
     uvloop.install()
 
     logging.basicConfig(level=logging.INFO)
 
-    bot = Bot()
+    intents = Intents.default()
+    intents.members = True
+
+    bot = Bot(intents=intents)
 
     bot.add_cog(MemberCommands(bot))
 
