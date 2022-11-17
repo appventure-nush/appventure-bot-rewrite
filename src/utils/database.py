@@ -1,10 +1,20 @@
+import logging
 from datetime import date
 from typing import Collection, Optional
 
-from peewee import BigIntegerField, Cast, CharField, Model, SqliteDatabase, fn
+from peewee import (
+    BigIntegerField,
+    Cast,
+    CharField,
+    Model,
+    PeeweeException,
+    SqliteDatabase,
+    fn,
+)
 from playhouse.hybrid import hybrid_property
 
 db = SqliteDatabase("./storage/data.db")  # TODO: modify this when deploying
+logger = logging.getLogger(__name__)
 
 
 class Members(Model):
@@ -24,7 +34,7 @@ class Members(Model):
 
     @year.expression
     def year(cls):
-        # translation of the above to raw sql for queries
+        # translation of the above to sqlite for queries
         # note: sql is 1-indexed
         join_year = Cast(fn.SUBSTR(cls.email, 2, 2), "INT")
         join_level = Cast(fn.SUBSTR(cls.email, 4, 1), "INT")
@@ -39,9 +49,15 @@ class Database:
     def __init__(self) -> None:
         db.connect()
 
-    def create_member(self, email: str, name: str) -> None:
-        with db.atomic():  # wrap in transaction
-            Members.create(id=email, name=name)
+    def create_member(self, email: str, name: str) -> bool:
+        with db.atomic() as transaction:  # wrap in transaction
+            try:
+                Members.create(email=email, name=name)
+                return True
+            except PeeweeException:
+                transaction.rollback()
+                logging.warn("Database writing failed:", exc_info=True)
+                return False
 
     def get_member_by_email(self, email: str) -> Optional[Members]:
         return Members.get_or_none(Members.email == email)
@@ -57,7 +73,7 @@ class Database:
 
     def set_discord(self, email: str, discord_id: int) -> None:
         with db.atomic():
-            Members.update(discordID=discord_id).where(Members.email == email)
+            Members.update(discord_id=discord_id).where(Members.email == email)
 
     def set_github(self, email: str, github: str) -> None:
         with db.atomic():

@@ -3,7 +3,12 @@
     "cSpell.words": [
         "dotenv",
         "exco",
+        "fastapi",
+        "msal",
+        "multidict",
         "nextcord",
-        "uvloop"
+        "uvicorn",
+        "uvloop",
+        "werkzeug"
     ]
 }

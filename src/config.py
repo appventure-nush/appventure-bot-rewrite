@@ -21,6 +21,10 @@ class Config:
         "guild_id",
         "member_role",
         "projects_category_id",
+        "ms_auth_client_id",
+        "ms_auth_tenant_id",
+        "ms_auth_secret",
+        "ms_auth_redirect_domain",
     )
 
     def __init__(self) -> None:
@@ -36,6 +40,10 @@ class Config:
         self.guild_id = int(os.environ["GUILD_ID"])
         self.member_role = int(os.environ["MEMBER_ROLE"])
         self.projects_category_id = int(os.environ["PROJECTS_CATEGORY_ID"])
+        self.ms_auth_client_id = os.environ["MS_AUTH_CLIENT_ID"]
+        self.ms_auth_tenant_id = os.environ["MS_AUTH_TENANT_ID"]
+        self.ms_auth_secret = os.environ["MS_AUTH_SECRET"]
+        self.ms_auth_redirect_domain = os.environ["MS_AUTH_REDIRECT_DOMAIN"]
 
 
 config = Config()

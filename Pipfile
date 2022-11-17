@@ -8,6 +8,9 @@ nextcord = {extras = ["speed"], version = "*"}
 uvloop = "*"
 peewee = "*"
 orjson = "*"
+msal = "*"
+quart = "*"
+uvicorn = {extras = ["standard"], version = "*"}
 
 [dev-packages]
 python-dotenv = "*"

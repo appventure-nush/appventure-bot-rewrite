@@ -1,12 +1,13 @@
 import csv
 from io import StringIO
 
-from nextcord import File, Interaction, SlashOption
+from nextcord import Attachment, File, Interaction, SlashOption
 from nextcord.ext.commands import Bot, Cog
 
 from config import config
-from database import database
 from utils.access_control_decorators import exco_command, subcommand
+from utils.database import database
+from utils.error import send_error
 
 from .cache import Cache
 
@@ -21,6 +22,30 @@ class MemberManagement(Cog):
     @exco_command()
     async def members(self, _interaction: Interaction) -> None:
         pass
+
+    @subcommand(members, description="Import members from a csv", name="import")
+    async def _import(self, interaction: Interaction, *, file: Attachment = SlashOption(description="Members to add")):
+        try:
+            content = (await file.read()).decode("utf-8")
+        except UnicodeDecodeError:
+            return await send_error(interaction, "Could not decode, is the file in UTF-8?")
+
+        reader = csv.DictReader(StringIO(content))
+        row_num = 1
+        for row in reader:
+            if not row.get("name", None) or not row.get("email", None):
+                return await send_error(
+                    interaction, f"Invalid row on line {row_num + 1}, are the headings (`name`, `email`) correct?"
+                )
+
+            if not database.create_member(row["email"], row["name"]):
+                return await send_error(
+                    interaction, f"Error writing row {row_num + 1} (already added {row_num - 1} members)"
+                )
+
+            row_num += 1
+
+        await interaction.send(content=f"Done! Added {row_num - 1} new members.")
 
     @subcommand(members, description="Export non-graduated members to csv")
     async def export(
