@@ -5,7 +5,7 @@ import msal
 
 from config import config
 
-# from werkzeug.datastructures import MultiDict
+from werkzeug.datastructures import MultiDict
 
 application = msal.ConfidentialClientApplication(
     client_id=config.ms_auth_client_id,
@@ -28,11 +28,11 @@ def get_ms_auth_link():
     return auth_flow["auth_uri"]
 
 
-# def on_ms_auth_response(args: MultiDict[str, str]) -> bool:
-#     auth_flow = auth_flows.get(args.get('state', ''), None)
-#     if not auth_flow:
-#         return False
+def on_ms_auth_response(args: MultiDict[str, str]) -> bool:
+    auth_flow = auth_flows.get(args.get('state', ''), None)
+    if not auth_flow:
+        return False
 
-#     return True
+    return True
 
 __all__ = ["get_ms_auth_link", "on_ms_auth_response"]

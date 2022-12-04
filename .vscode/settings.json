@@ -7,6 +7,7 @@
         "msal",
         "multidict",
         "nextcord",
+        "orjson",
         "uvicorn",
         "uvloop",
         "werkzeug"

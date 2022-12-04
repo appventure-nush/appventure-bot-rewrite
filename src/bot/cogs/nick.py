@@ -3,27 +3,41 @@ import logging
 from nextcord import ButtonStyle, Forbidden, Interaction, Member, SlashOption, User
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import View
+from .ui_helper import UIHelper, ButtonCallback
 
 from config import config
 from utils import emojis
 from utils.access_control_decorators import member_command
-from utils.callback_button import ButtonCallback, button_with_callback
 from utils.error import send_error, send_no_permission
 
 from .cache import Cache
+
+from typing import Sequence, Any
 
 logger = logging.getLogger(__name__)
 
 
 class Nick(Cog):
-    __slots__ = "bot", "cache"
+    __slots__ = "bot", "cache", "ui_helper"
 
-    def __init__(self, bot: Bot, cache: Cache) -> None:
+    def __init__(self, bot: Bot, cache: Cache, ui_helper: UIHelper) -> None:
         self.bot = bot
         self.cache = cache
+        self.ui_helper = ui_helper
 
-    def accept_wrapper(self, requester: Member, new_name: str) -> ButtonCallback:
+        self.ui_helper.register_callback("accept-nick-change", self.accept_wrapper)
+        self.ui_helper.register_callback("reject-nick-change", self.reject_wrapper)
+
+    def accept_wrapper(self, requester_id: Any, new_name: Any) -> ButtonCallback:
+        if not isinstance(requester_id, int) or not isinstance(new_name, str):
+            raise ValueError("Invalid values passed!")
+
         async def callback(interaction: Interaction) -> None:
+            requester = self.cache.guild.get_member(requester_id)
+            if not requester:
+                await interaction.edit(content="User no longer in server!")
+                return
+
             if not interaction.user or isinstance(interaction.user, User):
                 raise RuntimeError("Interaction had invalid user!")
 
@@ -35,20 +49,29 @@ class Nick(Cog):
 
             await interaction.edit(
                 content=f"{interaction.user.mention} has accepted {requester.mention}'s request to change name to {new_name}.",
-                view=None,
+                view=None
             )
 
             try:
                 await requester.edit(nick=new_name)
             except Forbidden:
-                return await send_error(interaction, "No permission to rename that user!", ephemeral=True)
+                await interaction.edit(content="No permission to rename that user!")
+                return
 
             await requester.send(f"Your rename request to {new_name} was accepted by an exco member!")
 
         return callback
 
-    def reject_wrapper(self, requester: Member, new_name: str) -> ButtonCallback:
+    def reject_wrapper(self, requester_id: Any, new_name: Any) -> ButtonCallback:
+        if not isinstance(requester_id, int) or not isinstance(new_name, str):
+            raise ValueError("Invalid values passed!")
+
         async def callback(interaction: Interaction) -> None:
+            requester = self.cache.guild.get_member(requester_id)
+            if not requester:
+                await interaction.edit(content="User no longer in server!")
+                return
+
             if not interaction.user or isinstance(interaction.user, User):
                 raise RuntimeError("Interaction had invalid user!")
 
@@ -60,7 +83,7 @@ class Nick(Cog):
 
             await interaction.edit(
                 content=f"{interaction.user.mention} has rejected {requester.mention}'s request to change name to {new_name}.",
-                view=None,
+                view=None
             )
 
             await requester.send(f"Your rename request to {new_name} was rejected by an exco member.")
@@ -81,18 +104,19 @@ class Nick(Cog):
         if not interaction.user or not (member := self.cache.guild.get_member(interaction.user.id)):
             raise RuntimeError("Interaction had invalid user!")
 
-        responses = View(timeout=None)
+        responses = View(timeout=None, auto_defer=False)
         responses.add_item(
-            button_with_callback(
-                callback=self.accept_wrapper(member, new_name),
-                label="Accept",
-                emoji=emojis.tick,
-                style=ButtonStyle.green,
+            self.ui_helper.get_button(
+                callback_name="accept-nick-change",
+                callback_args=(member.id, new_name),
+                label="Accept", emoji=emojis.tick, style=ButtonStyle.green
             )
         )
         responses.add_item(
-            button_with_callback(
-                callback=self.reject_wrapper(member, new_name), label="Deny", emoji=emojis.cross, style=ButtonStyle.red
+            self.ui_helper.get_button(
+                callback_name="reject-nick-change",
+                callback_args=(member.id, new_name),
+                label="Deny", emoji=emojis.cross, style=ButtonStyle.red
             )
         )
 
