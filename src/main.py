@@ -2,7 +2,7 @@ import uvicorn
 import uvloop
 
 from bot.bot import main
-from server.server import app # type: ignore
+from server.server import app  # noqa: F401
 
 if __name__ == "__main__":
     uvloop.install()

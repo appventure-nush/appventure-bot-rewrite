@@ -1,9 +1,9 @@
 import logging
+from typing import Any
 
-from nextcord import ButtonStyle, Forbidden, Interaction, Member, SlashOption, User
+from nextcord import ButtonStyle, Forbidden, Interaction, SlashOption, User
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import View
-from .ui_helper import UIHelper, ButtonCallback
 
 from config import config
 from utils import emojis
@@ -11,8 +11,7 @@ from utils.access_control_decorators import member_command
 from utils.error import send_error, send_no_permission
 
 from .cache import Cache
-
-from typing import Sequence, Any
+from .ui_helper import ButtonCallback, UIHelper
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,7 @@ class Nick(Cog):
 
             await interaction.edit(
                 content=f"{interaction.user.mention} has accepted {requester.mention}'s request to change name to {new_name}.",
-                view=None
+                view=None,
             )
 
             try:
@@ -83,7 +82,7 @@ class Nick(Cog):
 
             await interaction.edit(
                 content=f"{interaction.user.mention} has rejected {requester.mention}'s request to change name to {new_name}.",
-                view=None
+                view=None,
             )
 
             await requester.send(f"Your rename request to {new_name} was rejected by an exco member.")
@@ -109,14 +108,18 @@ class Nick(Cog):
             self.ui_helper.get_button(
                 callback_name="accept-nick-change",
                 callback_args=(member.id, new_name),
-                label="Accept", emoji=emojis.tick, style=ButtonStyle.green
+                label="Accept",
+                emoji=emojis.tick,
+                style=ButtonStyle.green,
             )
         )
         responses.add_item(
             self.ui_helper.get_button(
                 callback_name="reject-nick-change",
                 callback_args=(member.id, new_name),
-                label="Deny", emoji=emojis.cross, style=ButtonStyle.red
+                label="Deny",
+                emoji=emojis.cross,
+                style=ButtonStyle.red,
             )
         )
 

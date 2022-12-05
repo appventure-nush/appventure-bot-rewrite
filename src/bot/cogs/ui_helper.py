@@ -1,17 +1,35 @@
-from typing import MutableMapping, Callable, Any, Coroutine, MutableSequence, Tuple, Any, Coroutine, Collection, Mapping
-from nextcord.ext.commands import Cog, Bot
-from nextcord import Interaction, Message, RawMessageDeleteEvent, RawBulkMessageDeleteEvent, RawMessageUpdateEvent, InteractionType
-from nextcord.ui import Button, View
-from nextcord.ext import tasks
-import orjson
-import uuid
-
 import logging
+import uuid
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Coroutine,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    MutableSet,
+    Tuple,
+)
+
+import orjson
+from nextcord import (
+    Interaction,
+    InteractionType,
+    Message,
+    RawBulkMessageDeleteEvent,
+    RawMessageDeleteEvent,
+    RawMessageUpdateEvent,
+)
+from nextcord.ext import tasks
+from nextcord.ext.commands import Bot, Cog
+from nextcord.ui import Button, View
 
 logger = logging.getLogger(__name__)
 
 ButtonCallback = Callable[[Interaction], Coroutine[Any, Any, None]]
 ButtonCallbackFactory = Callable[..., ButtonCallback]
+
 
 class UIHelper(Cog):
     __slots__ = "bot", "callbacks"
@@ -19,8 +37,10 @@ class UIHelper(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
         self.callbacks: MutableMapping[str, ButtonCallbackFactory] = {}
-        self.buttons: MutableMapping[str, MutableSequence[Tuple[str, str, Collection[Any]]]] = {} # message id -> button id, callback name, callback args
-        self.pending: MutableMapping[str, Tuple[str, Collection[Any]]] = {} # button id -> callback name, callback args
+        self.buttons: MutableMapping[
+            str, MutableSequence[Tuple[str, str, Collection[Any]]]
+        ] = {}  # message id -> button id, callback name, callback args
+        self.pending: MutableMapping[str, Tuple[str, Collection[Any]]] = {}  # button id -> callback name, callback args
 
     def register_callback(self, callback_name: str, callback: ButtonCallbackFactory) -> None:
         if callback_name in self.callbacks:
@@ -41,7 +61,7 @@ class UIHelper(Cog):
     async def on_message(self, message: Message) -> None:
         if message.author.id != self.bot.application_id:
             return
-        
+
         if len(message.components) == 0:
             return
 
@@ -51,7 +71,7 @@ class UIHelper(Cog):
                 continue
 
             if not component.custom_id:
-                continue # URL button
+                continue  # URL button
 
             if component.custom_id not in self.pending:
                 logger.warn("Adding a button not registered in the UI helper!")
@@ -72,26 +92,26 @@ class UIHelper(Cog):
         for message_id in payload.message_ids:
             self.buttons.pop(str(message_id), None)
 
-    def find_button_ids(self, components: Collection[Any]) -> Collection[str]:
-        result = []
+    def find_button_ids(self, components: Collection[Any]) -> MutableSet[str]:
+        result = set()
 
         for component in components:
             if component["type"] == 1:
                 # Action Row, recurse
-                result.extend(self.find_button_ids(component["components"]))
+                result.update(self.find_button_ids(component["components"]))
             elif component["type"] == 2:
                 # Button
                 if "custom_id" in component:
-                    result.append(component["custom_id"])
+                    result.add(component["custom_id"])
 
         return result
-                
+
     @Cog.listener()
     async def on_raw_message_edit(self, payload: RawMessageUpdateEvent) -> None:
         # https://discord.com/developers/docs/topics/gateway-events#message-update
         data: Mapping[str, Any] = payload.data
 
-        author_id: int | None = data.get('author', {}).get('id', None)
+        author_id: str | None = data.get("author", {}).get("id", None)
         if not author_id:
             logger.warn("Message had no author!")
             return
@@ -99,15 +119,24 @@ class UIHelper(Cog):
         if author_id != str(self.bot.application_id):
             return
 
-        components = data.get('components', [])
+        components = data.get("components", [])
         button_ids = self.find_button_ids(components)
 
         message_id = str(payload.message_id)
         if message_id not in self.buttons:
             self.buttons[message_id] = []
 
+        def filter_button_id(button: Tuple[str, str, Collection[Any]]) -> bool:
+            if button[0] in button_ids:
+                button_ids.discard(button[0])
+                return True
+            return False
+
         # remove popped components
-        self.buttons[message_id] = list(filter(lambda button: button[0] in button_ids, self.buttons[message_id]))
+        self.buttons[message_id] = list(filter(filter_button_id, self.buttons[message_id]))
+
+        # (technically equivalent but cancer)
+        # self.buttons[message_id] = list(filter(lambda button: (button[0] in button_ids) and (button_ids.discard(button[0]) or True), self.buttons[message_id]))
 
         # add pending components
         for button_id in button_ids:
@@ -141,7 +170,7 @@ class UIHelper(Cog):
                 callback = self.callbacks[callback_name](*callback_args)
                 await callback(interaction)
                 break
-        
+
     def check_callback_exists(self, button: Tuple[str, str, Collection[Any]]):
         if button[1] not in self.callbacks:
             logger.warn(f"Callback {button[1]} not found, removing button!")
@@ -155,9 +184,9 @@ class UIHelper(Cog):
             f.seek(0)
             data = f.read()
             if len(data) == 0:
-                data = b'{}'
-                f.write(b'{}')
-        
+                data = b"{}"
+                f.write(b"{}")
+
         self.buttons: MutableMapping[str, MutableSequence[Tuple[str, str, Collection[Any]]]] = orjson.loads(data)
 
         for message_id in self.buttons:
@@ -171,7 +200,7 @@ class UIHelper(Cog):
     def cog_unload(self) -> None:
         self.save_buttons_loop.stop()
         return super().cog_unload()
-    
+
     # Save buttons
     async def save_buttons(self) -> None:
         no_buttons = sum(len(buttons) for buttons in self.buttons.values())
@@ -187,7 +216,6 @@ class UIHelper(Cog):
     @save_buttons_loop.after_loop
     async def save_buttons_on_shutdown(self) -> None:
         await self.save_buttons()
-
 
 
 __all__ = ["UIHelper", "ButtonCallback", "ButtonCallbackFactory"]

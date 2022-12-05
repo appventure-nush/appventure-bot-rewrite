@@ -1,4 +1,5 @@
 from quart import Quart, request
+
 from utils.ms_auth import on_ms_auth_response
 
 app = Quart(__name__)

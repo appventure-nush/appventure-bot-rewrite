@@ -4,13 +4,13 @@ from typing import Any, Coroutine
 from nextcord import Intents
 from nextcord.ext.commands import Bot
 
-from bot.cogs import Cache, MemberManagement, Nick, Verify, UIHelper
+from bot.cogs import Cache, MemberManagement, Nick, UIHelper, Verify
 from config import config
 
-from asyncio import AbstractEventLoop
 
 def do_on_shutdown():
     raise KeyboardInterrupt
+
 
 def main(server_coroutine: Coroutine[Any, Any, None]) -> None:
     logging.basicConfig(level=logging.INFO)
