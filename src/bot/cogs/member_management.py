@@ -20,7 +20,7 @@ class MemberManagement(Cog):
         self.cache = cache
 
     @is_exco()
-    async def members(self, _interaction: Interaction) -> None:
+    async def members(self, _: Interaction) -> None:
         pass
 
     @subcommand(members, description="Import members from a csv", name="import")
