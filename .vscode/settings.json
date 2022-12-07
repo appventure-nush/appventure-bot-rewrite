@@ -1,12 +1,14 @@
 {
     "python.analysis.typeCheckingMode": "basic",
     "cSpell.words": [
+        "appventure",
         "dotenv",
         "exco",
         "fastapi",
         "msal",
         "multidict",
         "nextcord",
+        "NUSH",
         "orjson",
         "uvicorn",
         "uvloop",

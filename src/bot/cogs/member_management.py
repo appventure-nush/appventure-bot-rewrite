@@ -5,7 +5,7 @@ from nextcord import Attachment, File, Interaction, SlashOption
 from nextcord.ext.commands import Bot, Cog
 
 from config import config
-from utils.access_control_decorators import exco_command, subcommand
+from utils.access_control_decorators import is_exco, subcommand
 from utils.database import database
 from utils.error import send_error
 
@@ -19,7 +19,7 @@ class MemberManagement(Cog):
         self.bot = bot
         self.cache = cache
 
-    @exco_command()
+    @is_exco()
     async def members(self, _interaction: Interaction) -> None:
         pass
 

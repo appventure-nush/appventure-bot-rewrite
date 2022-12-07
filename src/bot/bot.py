@@ -4,8 +4,9 @@ from typing import Any, Coroutine
 from nextcord import Intents
 from nextcord.ext.commands import Bot
 
-from bot.cogs import Cache, MemberManagement, Nick, UIHelper, Verify
+from bot.cogs import Cache, MemberManagement, MSAuth, Nick, UIHelper
 from config import config
+from server import server
 
 
 def do_on_shutdown():
@@ -22,9 +23,11 @@ def main(server_coroutine: Coroutine[Any, Any, None]) -> None:
 
     bot.add_cog(cache := Cache(bot))
     bot.add_cog(ui_helper := UIHelper(bot))
+    bot.add_cog(ms_auth := MSAuth(bot, cache, ui_helper))
     bot.add_cog(MemberManagement(bot, cache))
     bot.add_cog(Nick(bot, cache, ui_helper))
-    bot.add_cog(Verify(bot, cache))
+
+    server.set_ms_auth_handler(ms_auth)
 
     task = bot.loop.create_task(server_coroutine)
     task.add_done_callback(lambda _: do_on_shutdown())

@@ -5,12 +5,14 @@ from config import config
 
 
 class Cache(Cog, name="Cache"):
-    __slots__ = "_guild", "bot", "_alumni_role", "_exco_channel"
+    __slots__ = "_guild", "bot", "_alumni_role", "_exco_channel", "_member_role", "_guest_role"
 
     def __init__(self, bot: Bot):
         self.bot = bot
         self._guild = None
         self._alumni_role = None
+        self._member_role = None
+        self._guest_role = None
         self._exco_channel = None
 
     @property
@@ -30,6 +32,24 @@ class Cache(Cog, name="Cache"):
                 raise RuntimeError("Cannot find alumni role!")
 
         return self._alumni_role
+
+    @property
+    def member_role(self) -> Role:
+        if not self._member_role:
+            self._member_role = self.guild.get_role(config.member_role)
+            if not self._member_role:
+                raise RuntimeError("Cannot find member role!")
+
+        return self._member_role
+
+    @property
+    def guest_role(self) -> Role:
+        if not self._guest_role:
+            self._guest_role = self.guild.get_role(config.guest_role)
+            if not self._guest_role:
+                raise RuntimeError("Cannot find guest role!")
+
+        return self._guest_role
 
     @property
     def exco_channel(self) -> TextChannel:

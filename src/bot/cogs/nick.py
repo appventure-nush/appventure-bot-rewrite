@@ -7,7 +7,7 @@ from nextcord.ui import View
 
 from config import config
 from utils import emojis
-from utils.access_control_decorators import member_command
+from utils.access_control_decorators import is_verified
 from utils.error import send_error, send_no_permission
 
 from .cache import Cache
@@ -34,7 +34,7 @@ class Nick(Cog):
         async def callback(interaction: Interaction) -> None:
             requester = self.cache.guild.get_member(requester_id)
             if not requester:
-                await interaction.edit(content="User no longer in server!")
+                await interaction.edit(content="User no longer in server!", view=None)
                 return
 
             if not interaction.user or isinstance(interaction.user, User):
@@ -57,7 +57,7 @@ class Nick(Cog):
                 await interaction.edit(content="No permission to rename that user!")
                 return
 
-            await requester.send(f"Your rename request to {new_name} was accepted by an exco member!")
+            await requester.send(f"Your rename request to {new_name} was accepted by an ExCo member!")
 
         return callback
 
@@ -68,7 +68,7 @@ class Nick(Cog):
         async def callback(interaction: Interaction) -> None:
             requester = self.cache.guild.get_member(requester_id)
             if not requester:
-                await interaction.edit(content="User no longer in server!")
+                await interaction.edit(content="User no longer in server!", view=None)
                 return
 
             if not interaction.user or isinstance(interaction.user, User):
@@ -85,11 +85,11 @@ class Nick(Cog):
                 view=None,
             )
 
-            await requester.send(f"Your rename request to {new_name} was rejected by an exco member.")
+            await requester.send(f"Your rename request to {new_name} was rejected by an ExCo member.")
 
         return callback
 
-    @member_command(description="Request for a name change")
+    @is_verified(description="Request for a name change")
     async def nick(
         self, interaction: Interaction, *, new_name: str = SlashOption(description="Your new name", required=True)
     ) -> None:

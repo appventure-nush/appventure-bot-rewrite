@@ -147,6 +147,10 @@ class UIHelper(Cog):
             self.buttons[message_id].append((button_id, *self.pending[button_id]))
             del self.pending[button_id]
 
+        # if the length is 0, remove the message from the buttons dict
+        if len(self.buttons[message_id]) == 0:
+            del self.buttons[message_id]
+
     @Cog.listener()
     async def on_interaction(self, interaction: Interaction) -> None:
         # https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-object-interaction-type
@@ -180,12 +184,11 @@ class UIHelper(Cog):
     # Load buttons
     @Cog.listener()
     async def on_connect(self) -> None:
-        with open("storage/buttons.json", "ab+") as f:
-            f.seek(0)
-            data = f.read()
-            if len(data) == 0:
-                data = b"{}"
-                f.write(b"{}")
+        try:
+            with open("storage/buttons.json", "rb") as f:
+                data = f.read()
+        except FileNotFoundError:
+            data = b"{}"
 
         self.buttons: MutableMapping[str, MutableSequence[Tuple[str, str, Collection[Any]]]] = orjson.loads(data)
 
