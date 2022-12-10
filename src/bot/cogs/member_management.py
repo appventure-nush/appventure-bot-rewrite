@@ -16,6 +16,8 @@ class MemberManagement(Cog):
     __slots__ = "bot", "cache"
 
     def __init__(self, bot: Bot, cache: Cache) -> None:
+        super().__init__()
+
         self.bot = bot
         self.cache = cache
 

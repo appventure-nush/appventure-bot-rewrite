@@ -20,6 +20,8 @@ class Nick(Cog):
     __slots__ = "bot", "cache", "ui_helper"
 
     def __init__(self, bot: Bot, cache: Cache, ui_helper: UIHelper) -> None:
+        super().__init__()
+
         self.bot = bot
         self.cache = cache
         self.ui_helper = ui_helper

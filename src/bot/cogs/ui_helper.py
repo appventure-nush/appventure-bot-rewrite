@@ -35,6 +35,8 @@ class UIHelper(Cog):
     __slots__ = "bot", "callbacks"
 
     def __init__(self, bot: Bot):
+        super().__init__()
+
         self.bot = bot
         self.callbacks: MutableMapping[str, ButtonCallbackFactory] = {}
         self.buttons: MutableMapping[

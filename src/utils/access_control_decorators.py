@@ -5,7 +5,6 @@ from nextcord import (
     Client,
     ClientCog,
     Interaction,
-    Permissions,
     SlashApplicationCommand,
     slash_command,
 )
@@ -146,7 +145,6 @@ def check_is_exco():
 
 def is_exco(**kwargs):
     kwargs["force_global"] = True
-    kwargs["default_member_permissions"] = Permissions(administrator=True)
 
     def wrapped(func: Callable):
         func = slash_command(**kwargs)(check_is_exco()(func))
@@ -158,7 +156,8 @@ def is_exco(**kwargs):
 
 # ensure we keep the checks
 def subcommand(main_command: SlashApplicationCommand, **kwargs):
-    kwargs["inherit_hooks"] = True
+    if "inherit_hooks" not in kwargs:
+        kwargs["inherit_hooks"] = True
 
     def wrapped(func: Callable):
         return main_command.subcommand(**kwargs)(func)
@@ -166,4 +165,14 @@ def subcommand(main_command: SlashApplicationCommand, **kwargs):
     return wrapped
 
 
-__all__ = ["is_member", "is_exco", "is_in_server", "is_verified", "subcommand"]
+__all__ = [
+    "is_member",
+    "check_is_member",
+    "is_exco",
+    "check_is_exco",
+    "is_in_server",
+    "check_in_server",
+    "is_verified",
+    "check_is_verified",
+    "subcommand",
+]

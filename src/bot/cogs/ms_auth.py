@@ -2,7 +2,7 @@ import logging
 import time
 import uuid
 from textwrap import dedent
-from typing import Any, MutableMapping, Tuple
+from typing import Any, MutableMapping, Optional, Tuple, Union
 
 import msal
 import orjson
@@ -15,7 +15,7 @@ from werkzeug.datastructures import MultiDict
 
 from config import config
 from utils import emojis
-from utils.access_control_decorators import is_exco, is_in_server
+from utils.access_control_decorators import check_is_exco, is_in_server, subcommand
 from utils.database import database
 from utils.error import send_error, send_no_permission
 
@@ -25,10 +25,12 @@ from .ui_helper import ButtonCallback, UIHelper
 logger = logging.getLogger(__name__)
 
 
-class MSAuth(Cog):
+class MSAuth(Cog, name="MSAuth"):
     __slots__ = "application", "auth_flows", "bot", "cache", "ui_helper"
 
     def __init__(self, bot: Bot, cache: Cache, ui_helper: UIHelper):
+        super().__init__()
+
         self.bot = bot
         self.cache = cache
         self.ui_helper = ui_helper
@@ -136,7 +138,10 @@ class MSAuth(Cog):
 
         return callback
 
-    def get_ms_auth_link(self, member_id: int):
+    def get_real_ms_auth_link(self, state: str) -> Optional[str]:
+        return self.auth_flows.get(state, (0, 0, {}))[2].get("auth_uri")
+
+    def get_ms_auth_link(self, member_id: int) -> str:
         state = str(uuid.uuid4())
 
         auth_flow = self.application.initiate_auth_code_flow(
@@ -145,18 +150,19 @@ class MSAuth(Cog):
 
         self.auth_flows[state] = (int(time.time()), member_id, auth_flow)
 
-        return auth_flow["auth_uri"]
+        return f"{config.ms_auth_redirect_domain}ms_auth?state={state}"
 
-    async def on_ms_auth_response(self, params: MultiDict[str, str]) -> str:
+    async def on_ms_auth_response(self, params: MultiDict[str, str]) -> Union[str, Tuple[str, int]]:
         _, member_id, auth_flow = self.auth_flows.get(params.get("state", ""), (0, 0, None))
         if not auth_flow:
-            return "Not found in pending requests, try running <code>/verify</code> again"
+            return "Not found in pending requests, try running <code>/ms verify</code> again", 404
 
         response = self.application.acquire_token_by_auth_code_flow(auth_flow, params)
         if response.get("error"):
             return (
                 response.get("error_description", "Unknown Microsoft error")
-                + "\nTry running <code>/verify</code> again"
+                + "\nTry running <code>/ms verify</code> again",
+                500,
             )
 
         del self.auth_flows[params["state"]]
@@ -169,15 +175,15 @@ class MSAuth(Cog):
 
         email: str = user_data.get("mail")
         if not email:
-            return "Could not get your email from Microsoft, try running <code>/verify</code> again"
+            return "Could not get your email from Microsoft, try running <code>/ms verify</code> again", 500
 
         name: str = user_data.get("displayName").title()
         if not name:
-            return "Could not get your name from Microsoft, try running <code>/verify</code> again"
+            return "Could not get your name from Microsoft, try running <code>/ms verify</code> again", 500
 
         appventure_member = self.cache.guild.get_member(member_id)
         if not appventure_member:
-            return "You're not in the AppVenture server, please join and try again"
+            return "You're not in the AppVenture server, please join and try again", 400
 
         await self.do_verification(email, appventure_member, name)
 
@@ -241,7 +247,7 @@ class MSAuth(Cog):
 
                 To complete verification, click the button and follow the instructions.
                 The link is valid for 1 day.
-                Alternatively, you can DM any ExCo to complete verification manually, or run `/verify` for a new link.
+                Alternatively, you can DM any ExCo to complete verification manually, or run `/ms verify` for a new link.
                 """
             ),
             buttons,
@@ -256,7 +262,11 @@ class MSAuth(Cog):
 
         await member.send(content=message[0], view=message[1])
 
-    @is_in_server(description="Start the verification process, if you are not verified yet")
+    @is_in_server()
+    async def ms(self, _: Interaction) -> None:
+        pass
+
+    @subcommand(ms, description="Start the verification process, if you are not verified yet")
     async def verify(self, interaction: Interaction) -> None:
         if not interaction.user:
             raise RuntimeError("Interaction had no user!")
@@ -272,7 +282,8 @@ class MSAuth(Cog):
 
         await interaction.send(content=message[0], view=message[1], ephemeral=True)
 
-    @is_exco(description="Manually verify a user")
+    @subcommand(ms, description="Manually verify a user", inherit_hooks=False)
+    @check_is_exco()
     async def manual_verify(
         self,
         interaction: Interaction,

@@ -11,6 +11,7 @@ orjson = "*"
 msal = "*"
 quart = "*"
 uvicorn = {extras = ["standard"], version = "*"}
+pygithub = "*"
 
 [dev-packages]
 python-dotenv = "*"

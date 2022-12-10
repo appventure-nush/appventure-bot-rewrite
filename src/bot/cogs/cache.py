@@ -8,6 +8,8 @@ class Cache(Cog, name="Cache"):
     __slots__ = "_guild", "bot", "_alumni_role", "_exco_channel", "_member_role", "_guest_role"
 
     def __init__(self, bot: Bot):
+        super().__init__()
+
         self.bot = bot
         self._guild = None
         self._alumni_role = None
