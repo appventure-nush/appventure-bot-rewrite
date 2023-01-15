@@ -4,7 +4,7 @@ from typing import Optional
 from nextcord.ext.commands import Bot
 from quart import Quart, redirect, request
 
-from bot.cogs.ms_auth import MSAuth
+from bot.cogs import GithubAuth, MSAuth
 
 app = Quart(__name__)
 
@@ -32,12 +32,25 @@ def get_ms_auth_handler() -> Optional[MSAuth]:
     return cog
 
 
+def get_gh_auth_handler() -> Optional[GithubAuth]:
+    if not bot:
+        logger.error("No bot set")
+        return None
+
+    cog = bot.get_cog("GithubAuth")
+    if not isinstance(cog, GithubAuth):
+        logger.error("Cog is not GithubAuth, or cog doesn't exist")
+        return None
+
+    return cog
+
+
 @app.route("/", methods=["POST"])
 async def ms_auth_result():
     if not (handler := get_ms_auth_handler()):
         return "Internal server error, please contact ExCo", 500
 
-    return str(await handler.on_ms_auth_response(await request.form))
+    return await handler.on_ms_auth_response(await request.form)
 
 
 @app.route("/ms_auth", methods=["GET"])
@@ -49,6 +62,14 @@ async def redirect_to_ms_auth():
         return "Invalid request, try running <code>/ms verify</code> again", 400
 
     return redirect(link)
+
+
+@app.route("/github", methods=["GET"])
+async def do_github_auth():
+    if not (handler := get_gh_auth_handler()):
+        return "Internal server error, please contact ExCo", 500
+
+    return await handler.on_gh_auth_response(request.args)
 
 
 __all__ = ["app"]

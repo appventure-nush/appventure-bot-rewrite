@@ -23,7 +23,6 @@ class Config:
         "projects_category_id",
         "ms_auth_client_id",
         "ms_auth_tenant_id",
-        "ms_auth_secret",
         "ms_auth_redirect_domain",
     )
 
@@ -42,7 +41,6 @@ class Config:
         self.projects_category_id = int(os.environ["PROJECTS_CATEGORY_ID"])
         self.ms_auth_client_id = os.environ["MS_AUTH_CLIENT_ID"]
         self.ms_auth_tenant_id = os.environ["MS_AUTH_TENANT_ID"]
-        self.ms_auth_secret = os.environ["MS_AUTH_SECRET"]
         self.ms_auth_redirect_domain = os.environ["MS_AUTH_REDIRECT_DOMAIN"]
 
 

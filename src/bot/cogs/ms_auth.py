@@ -142,7 +142,7 @@ class MSAuth(Cog, name="MSAuth"):
         return self.auth_flows.get(state, (0, 0, {}))[2].get("auth_uri")
 
     def get_ms_auth_link(self, member_id: int) -> str:
-        state = str(uuid.uuid4())
+        state = uuid.uuid4().hex
 
         auth_flow = self.application.initiate_auth_code_flow(
             scopes=[], redirect_uri=f"{config.ms_auth_redirect_domain}", state=state, response_mode="form_post"
@@ -301,14 +301,6 @@ class MSAuth(Cog, name="MSAuth"):
 
         await interaction.send(f"Successful manual verification of {name}!", ephemeral=True)
 
-    def prune_auth_flows(self) -> None:
-        current_time = time.time()
-        new_auth_flows = {}
-        for key, auth_flow_data in self.auth_flows.items():
-            if current_time - auth_flow_data[0] < 86400:
-                new_auth_flows[key] = auth_flow_data
-        self.auth_flows = new_auth_flows
-
     def load_auth_flows(self) -> None:
         try:
             with open("storage/auth_flows.json", "rb") as f:
@@ -317,12 +309,16 @@ class MSAuth(Cog, name="MSAuth"):
             data = b"{}"
 
         logger.info(f"Loaded {len(self.auth_flows)} pending auth flows")
-        self.auth_flows = orjson.loads(data)
+        self.auth_flows: MutableMapping[str, Tuple[int, int, Any]] = orjson.loads(data)
         self.save_auth_flows_loop.start()
 
-    def cog_unload(self) -> None:
-        self.save_auth_flows_loop.stop()
-        return super().cog_unload()
+    def prune_auth_flows(self) -> None:
+        current_time = time.time()
+        new_auth_flows: MutableMapping[str, Tuple[int, int, Any]] = {}
+        for key, auth_flow_data in self.auth_flows.items():
+            if current_time - auth_flow_data[0] < 86400:
+                new_auth_flows[key] = auth_flow_data
+        self.auth_flows = new_auth_flows
 
     def save_auth_flows(self) -> None:
         self.prune_auth_flows()
@@ -338,6 +334,10 @@ class MSAuth(Cog, name="MSAuth"):
     @save_auth_flows_loop.after_loop
     async def save_auth_flows_on_shutdown(self) -> None:
         self.save_auth_flows()
+
+    def cog_unload(self) -> None:
+        self.save_auth_flows_loop.stop()
+        return super().cog_unload()
 
 
 __all__ = ["MSAuth"]

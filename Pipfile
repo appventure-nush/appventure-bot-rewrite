@@ -12,6 +12,7 @@ msal = "*"
 quart = "*"
 uvicorn = {extras = ["standard"], version = "*"}
 pygithub = "*"
+requests = "*"
 
 [dev-packages]
 python-dotenv = "*"

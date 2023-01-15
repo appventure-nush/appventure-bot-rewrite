@@ -51,7 +51,7 @@ class UIHelper(Cog):
         self.callbacks[callback_name] = callback
 
     def get_button(self, callback_name: str, callback_args: Collection[Any], **kwargs) -> Button:
-        button_id = str(uuid.uuid4())
+        button_id = uuid.uuid4().hex
         kwargs["custom_id"] = button_id
         button = Button(**kwargs)
 

@@ -24,7 +24,7 @@ def main(server_coroutine: Coroutine[Any, Any, None]) -> None:
     bot.add_cog(cache := Cache(bot))
     bot.add_cog(ui_helper := UIHelper(bot))
     bot.add_cog(MSAuth(bot, cache, ui_helper))
-    bot.add_cog(GithubAuth(bot))
+    bot.add_cog(GithubAuth(bot, cache))
     bot.add_cog(MemberManagement(bot, cache))
     bot.add_cog(Nick(bot, cache, ui_helper))
 

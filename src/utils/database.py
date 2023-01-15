@@ -13,14 +13,14 @@ from peewee import (
 )
 from playhouse.hybrid import hybrid_property
 
-db = SqliteDatabase("./storage/data.db")  # TODO: modify this when deploying
+db = SqliteDatabase("storage/data.db")  # TODO: modify this when deploying
 logger = logging.getLogger(__name__)
 
 
 class Members(Model):
     email = CharField(23, primary_key=True, column_name="id")
     name = CharField(100)
-    discord_id = BigIntegerField(null=True, column_name="discordID")
+    discord_id = BigIntegerField(null=True, column_name="discordID", unique=True)
     github = CharField(100, null=True)
 
     class Meta:
@@ -65,19 +65,19 @@ class Database:
     def get_member_by_name(self, name: str) -> Collection[Members]:
         return Members.select().where(Members.name.contains(name))
 
-    def get_member_by_discord_id(self, discord_id: int) -> Collection[Members]:
-        return Members.select().where(Members.discord_id == discord_id)
+    def get_member_by_discord_id(self, discord_id: int) -> Optional[Members]:
+        return Members.get_or_none(Members.discord_id == discord_id)
 
     def get_members(self) -> Collection[Members]:
         return Members.select()
 
     def set_discord(self, email: str, discord_id: int) -> None:
         with db.atomic():
-            Members.update(discord_id=discord_id).where(Members.email == email)
+            Members.update(discord_id=discord_id).where(Members.email == email).execute()
 
     def set_github(self, email: str, github: str) -> None:
         with db.atomic():
-            Members.update(github=github).where(Members.email == email)
+            Members.update(github=github).where(Members.email == email).execute()
 
     def get_graduated(self) -> Collection[Members]:
         target_year = 7
