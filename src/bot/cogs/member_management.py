@@ -38,11 +38,15 @@ class MemberManagement(Cog):
         for row_num, row in enumerate(reader):
             if not row.get("name", None) or not row.get("email", None):
                 return await send_error(
-                    interaction, f"Invalid row on line {row_num + 1}, are the headings (`name`, `email`) correct?"
+                    interaction, f"Invalid row on line {row_num + 1}, are the values (`name`, `email`) correct?"
                 )
 
             emails.append(row["email"])
             names.append(row["name"])
+
+        if len(emails) != len(names):
+            # This should never happen, but just in case
+            raise ValueError("Emails and names are not the same length???")
 
         success = database.create_members(emails, names, update_existing)
 
