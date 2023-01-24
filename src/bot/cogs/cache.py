@@ -1,4 +1,4 @@
-from nextcord import Guild, Role, TextChannel, CategoryChannel
+from nextcord import CategoryChannel, Guild, Role, TextChannel
 from nextcord.ext.commands import Bot, Cog
 
 from config import config
@@ -68,15 +68,15 @@ class Cache(Cog, name="Cache"):
     @property
     def projects_category(self) -> CategoryChannel:
         if not self._projects_category:
-            temp_projects_category = next(filter(lambda category: category.id == config.projects_category_id, self.guild.categories), None)
+            temp_projects_category = next(
+                filter(lambda category: category.id == config.projects_category_id, self.guild.categories), None
+            )
             if not temp_projects_category:
                 raise RuntimeError("Cannot find projects category!")
 
             self._projects_category = temp_projects_category
 
         return self._projects_category
-
-    
 
 
 __all__ = ["Cache"]

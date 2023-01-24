@@ -49,14 +49,20 @@ class Database:
     def __init__(self) -> None:
         db.connect()
 
-    def create_members(self, emails: Collection[str], names: Collection[str], update_existing: bool) -> Union[Literal[False], Tuple[Literal[True], int, int]]:
+    def create_members(
+        self, emails: Collection[str], names: Collection[str], update_existing: bool
+    ) -> Union[Literal[False], Tuple[Literal[True], int, int]]:
         with db.atomic() as transaction:  # wrap in transaction
             try:
-                num_new = Members.insert_many(rows=zip(emails, names), fields=[Members.email, Members.name]).on_conflict_ignore().execute() # insert new records
+                num_new = (
+                    Members.insert_many(rows=zip(emails, names), fields=[Members.email, Members.name])
+                    .on_conflict_ignore()
+                    .execute()
+                )  # insert new records
                 if update_existing:
                     Members.insert_many(rows=zip(emails, names), fields=[Members.email, Members.name]).on_conflict(
                         conflict_target=[Members.email], preserve=[Members.name]
-                    ).execute() # update existing records
+                    ).execute()  # update existing records
                 num_existing_updated = update_existing * (len(emails) - num_new)
                 return (True, num_new, num_existing_updated)
             except PeeweeException:

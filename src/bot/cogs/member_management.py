@@ -26,7 +26,15 @@ class MemberManagement(Cog):
         pass
 
     @subcommand(members, description="Import members from a csv", name="import")
-    async def _import(self, interaction: Interaction, *, members: Attachment = SlashOption(description='Members to add, "name" and "email"'), update_existing: bool = SlashOption(description="Whether to update existing members on conflict", default=False)) -> None:
+    async def _import(
+        self,
+        interaction: Interaction,
+        *,
+        members: Attachment = SlashOption(description='Members to add, "name" and "email"'),
+        update_existing: bool = SlashOption(
+            description="Whether to update existing members on conflict", default=False
+        ),
+    ) -> None:
         try:
             content = (await members.read()).decode("utf-8")
         except UnicodeDecodeError:
@@ -54,10 +62,11 @@ class MemberManagement(Cog):
             await send_error(interaction, "Insertion failed, check logs for more info.")
         else:
             if update_existing:
-                await interaction.send(content=f"Done! Added {success[1]} new members and updated {success[2]} members.")
+                await interaction.send(
+                    content=f"Done! Added {success[1]} new members and updated {success[2]} members."
+                )
             else:
                 await interaction.send(content=f"Done! Added {success[1]} new members.")
-        
 
     @subcommand(members, description="Export non-graduated members to csv")
     async def export(

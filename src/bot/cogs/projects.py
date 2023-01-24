@@ -1,17 +1,15 @@
+from dataclasses import dataclass
+from typing import MutableMapping, Optional
+
+from nextcord import Interaction, PermissionOverwrite, Permissions, SlashOption
 from nextcord.ext.commands import Bot, Cog
 
-from config import config
+from utils.access_control_decorators import is_exco, subcommand
+from utils.error import send_error
+
 from .cache import Cache
 from .ui_helper import UIHelper
 
-from nextcord import Interaction, SlashOption, PermissionOverwrite, Permissions
-
-from utils.access_control_decorators import is_exco, subcommand
-
-from typing import MutableMapping, Optional
-from dataclasses import dataclass
-
-from utils.error import send_error
 
 @dataclass
 class Project:
@@ -21,6 +19,7 @@ class Project:
     discord_voice_channel_id: int
     webhook_id: Optional[int] = None
     github_repo: Optional[str] = None
+
 
 class Projects(Cog):
     __slots__ = "bot", "cache", "ui_helper"
@@ -40,13 +39,16 @@ class Projects(Cog):
 
     @subcommand(project, description="Create a project")
     async def create(
-        self, interaction: Interaction, 
-        *, 
-        project_name: str = SlashOption(description="Project name", required=True), 
-        with_github: bool = SlashOption(description="Whether to also create a GitHub repository", default=True, required=True)
+        self,
+        interaction: Interaction,
+        *,
+        project_name: str = SlashOption(description="Project name", required=True),
+        with_github: bool = SlashOption(
+            description="Whether to also create a GitHub repository", default=True, required=True
+        ),
     ) -> None:
-        project_name = project_name.lower().replace(' ', '-')
-        
+        project_name = project_name.lower().replace(" ", "-")
+
         if project_name in self.projects:
             return await send_error(interaction, "Project already exists")
 
@@ -57,10 +59,23 @@ class Projects(Cog):
 
         projects_category = self.cache.projects_category
 
-        project_text_channel = await guild.create_text_channel(project_name, category=projects_category, overwrites={guild.default_role: deny_all, project_role: channel_overrides})
-        project_voice_channel = await guild.create_voice_channel(f"{project_role}-voice", category=projects_category, overwrites={guild.default_role: deny_all, project_role: channel_overrides})
+        project_text_channel = await guild.create_text_channel(
+            project_name,
+            category=projects_category,
+            overwrites={guild.default_role: deny_all, project_role: channel_overrides},
+        )
+        project_voice_channel = await guild.create_voice_channel(
+            f"{project_role}-voice",
+            category=projects_category,
+            overwrites={guild.default_role: deny_all, project_role: channel_overrides},
+        )
 
-        project = Project(name=project_name, discord_role_id=project_role.id, discord_text_channel_id=project_text_channel.id, discord_voice_channel_id=project_voice_channel.id)
+        project = Project(
+            name=project_name,
+            discord_role_id=project_role.id,
+            discord_text_channel_id=project_text_channel.id,
+            discord_voice_channel_id=project_voice_channel.id,
+        )
 
         if with_github:
             # TODO: make github webhook & link
@@ -69,5 +84,4 @@ class Projects(Cog):
         self.projects[project_name] = project
 
 
-
-__all__ = ['Projects']
+__all__ = ["Projects"]

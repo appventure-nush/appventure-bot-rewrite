@@ -56,9 +56,8 @@ class GithubAuth(Cog, name="GithubAuth"):
             return await send_error(interaction, "Please link your Microsoft email first, by running `/ms verify`!")
 
         # check already added github
-        if (
-            (not is_appventure_member and str(member.id) in self.github_accts) or 
-            (member_in_database and member_in_database.github)
+        if (not is_appventure_member and str(member.id) in self.github_accts) or (
+            member_in_database and member_in_database.github
         ):
             return await send_error(interaction, "You have already linked your GitHub account!")
 
