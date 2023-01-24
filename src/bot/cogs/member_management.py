@@ -26,28 +26,34 @@ class MemberManagement(Cog):
         pass
 
     @subcommand(members, description="Import members from a csv", name="import")
-    async def _import(self, interaction: Interaction, *, file: Attachment = SlashOption(description="Members to add")):
+    async def _import(self, interaction: Interaction, *, members: Attachment = SlashOption(description='Members to add, "name" and "email"'), update_existing: bool = SlashOption(description="Whether to update existing members on conflict", default=False)) -> None:
         try:
-            content = (await file.read()).decode("utf-8")
+            content = (await members.read()).decode("utf-8")
         except UnicodeDecodeError:
             return await send_error(interaction, "Could not decode, is the file in UTF-8?")
 
         reader = csv.DictReader(StringIO(content))
-        row_num = 1
-        for row in reader:
+        emails = []
+        names = []
+        for row_num, row in enumerate(reader):
             if not row.get("name", None) or not row.get("email", None):
                 return await send_error(
                     interaction, f"Invalid row on line {row_num + 1}, are the headings (`name`, `email`) correct?"
                 )
 
-            if not database.create_member(row["email"], row["name"]):
-                return await send_error(
-                    interaction, f"Error writing row {row_num + 1} (already added {row_num - 1} members)"
-                )
+            emails.append(row["email"])
+            names.append(row["name"])
 
-            row_num += 1
+        success = database.create_members(emails, names, update_existing)
 
-        await interaction.send(content=f"Done! Added {row_num - 1} new members.")
+        if not success:
+            await send_error(interaction, "Insertion failed, check logs for more info.")
+        else:
+            if update_existing:
+                await interaction.send(content=f"Done! Added {success[1]} new members and updated {success[2]} members.")
+            else:
+                await interaction.send(content=f"Done! Added {success[1]} new members.")
+        
 
     @subcommand(members, description="Export non-graduated members to csv")
     async def export(

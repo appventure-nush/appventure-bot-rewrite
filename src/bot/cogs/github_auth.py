@@ -49,15 +49,16 @@ class GithubAuth(Cog, name="GithubAuth"):
         if not member:
             raise RuntimeError("User not in AppVenture server, is permission check correct?")
 
-        appventure_member = database.get_member_by_discord_id(member.id)
+        member_in_database = database.get_member_by_discord_id(member.id)
         is_appventure_member = self.cache.member_role in member.roles
-        if is_appventure_member and not appventure_member:
+        if is_appventure_member and not member_in_database:
             # appventure member; doesn't have MS linked
             return await send_error(interaction, "Please link your Microsoft email first, by running `/ms verify`!")
 
         # check already added github
-        if (not is_appventure_member and str(member.id) in self.github_accts) or (
-            appventure_member and appventure_member.github
+        if (
+            (not is_appventure_member and str(member.id) in self.github_accts) or 
+            (member_in_database and member_in_database.github)
         ):
             return await send_error(interaction, "You have already linked your GitHub account!")
 
@@ -118,7 +119,7 @@ class GithubAuth(Cog, name="GithubAuth"):
     async def do_verification(self, appventure_member: Member, github_username: str, github_display_name: str) -> None:
         member = database.get_member_by_discord_id(appventure_member.id)
         if member:
-            # is AppVenture member
+            # is (or was) AppVenture member
             database.set_github(str(member.email), github_username)
         else:
             # store in json
