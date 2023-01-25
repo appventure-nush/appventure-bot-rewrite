@@ -1,11 +1,11 @@
-from nextcord import CategoryChannel, Guild, Role, TextChannel
+from nextcord import Guild, Role, TextChannel
 from nextcord.ext.commands import Bot, Cog
 
 from config import config
 
 
 class Cache(Cog, name="Cache"):
-    __slots__ = "_guild", "bot", "_alumni_role", "_exco_channel", "_member_role", "_guest_role", "_projects_category"
+    __slots__ = "_guild", "bot", "_alumni_role", "_exco_channel", "_member_role", "_guest_role"
 
     def __init__(self, bot: Bot):
         super().__init__()
@@ -16,7 +16,6 @@ class Cache(Cog, name="Cache"):
         self._member_role = None
         self._guest_role = None
         self._exco_channel = None
-        self._projects_category = None
 
     @property
     def guild(self) -> Guild:
@@ -64,19 +63,6 @@ class Cache(Cog, name="Cache"):
             self._exco_channel = temp_exco_channel
 
         return self._exco_channel
-
-    @property
-    def projects_category(self) -> CategoryChannel:
-        if not self._projects_category:
-            temp_projects_category = next(
-                filter(lambda category: category.id == config.projects_category_id, self.guild.categories), None
-            )
-            if not temp_projects_category:
-                raise RuntimeError("Cannot find projects category!")
-
-            self._projects_category = temp_projects_category
-
-        return self._projects_category
 
 
 __all__ = ["Cache"]

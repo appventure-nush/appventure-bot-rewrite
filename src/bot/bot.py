@@ -4,7 +4,15 @@ from typing import Any, Coroutine
 from nextcord import Intents
 from nextcord.ext.commands import Bot
 
-from bot.cogs import Cache, GithubAuth, MemberManagement, MSAuth, Nick, UIHelper
+from bot.cogs import (
+    Cache,
+    GithubAuth,
+    MemberManagement,
+    MSAuth,
+    Nick,
+    Projects,
+    UIHelper,
+)
 from config import config
 from server import server
 
@@ -24,9 +32,10 @@ def main(server_coroutine: Coroutine[Any, Any, None]) -> None:
     bot.add_cog(cache := Cache(bot))
     bot.add_cog(ui_helper := UIHelper(bot))
     bot.add_cog(MSAuth(bot, cache, ui_helper))
-    bot.add_cog(GithubAuth(bot, cache))
+    bot.add_cog(github_auth := GithubAuth(bot, cache))
     bot.add_cog(MemberManagement(bot, cache))
     bot.add_cog(Nick(bot, cache, ui_helper))
+    bot.add_cog(Projects(bot, cache, ui_helper, github_auth))
 
     server.set_bot(bot)
 

@@ -2,7 +2,7 @@ import logging
 import time
 import uuid
 from textwrap import dedent
-from typing import MutableMapping, Tuple, Union
+from typing import MutableMapping, Optional, Tuple, Union
 
 import orjson
 import requests
@@ -36,6 +36,20 @@ class GithubAuth(Cog, name="GithubAuth"):
 
         self.load_data()
 
+    # convenience function: get github name from discord id
+    async def get_github_name(self, discord_id: int) -> Optional[str]:
+        member = self.cache.guild.get_member(discord_id)
+        if not member:
+            return None
+
+        member_in_database = database.get_member_by_discord_id(member.id)
+        is_appventure_member = self.cache.member_role in member.roles
+
+        if not is_appventure_member:
+            return self.github_accts.get(str(member.id), None)
+        else:
+            return str(member_in_database.github) if member_in_database else None
+
     @is_in_server()
     async def gh(self, _: Interaction) -> None:
         pass
@@ -56,9 +70,7 @@ class GithubAuth(Cog, name="GithubAuth"):
             return await send_error(interaction, "Please link your Microsoft email first, by running `/ms verify`!")
 
         # check already added github
-        if (not is_appventure_member and str(member.id) in self.github_accts) or (
-            member_in_database and member_in_database.github
-        ):
+        if await self.get_github_name(member.id):
             return await send_error(interaction, "You have already linked your GitHub account!")
 
         # generate auth flow
