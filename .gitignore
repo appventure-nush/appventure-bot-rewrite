@@ -1,7 +1,9 @@
-src/.env
+.env
 
 secrets/
 
 storage/
+
+postgres_data/
 
 **/__pycache__

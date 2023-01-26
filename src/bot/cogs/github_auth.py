@@ -19,36 +19,24 @@ from utils.database import database
 from utils.error import send_error
 
 from .cache import Cache
+from .json_cache import JSONCache
 
 logger = logging.getLogger(__name__)
 
 
 class GithubAuth(Cog, name="GithubAuth"):
-    __slots__ = "bot", "cache", "github_accts", "github_pending_auth_flows"
+    __slots__ = "bot", "cache", "github_pending_auth_flows"
 
-    def __init__(self, bot: Bot, cache: Cache) -> None:
+    def __init__(self, bot: Bot, cache: Cache, json_cache: JSONCache) -> None:
         super().__init__()
 
         self.bot = bot
         self.cache = cache
-        self.github_accts: MutableMapping[str, str] = {}  # discord id (as str) -> github name
-        self.github_auth_flows: MutableMapping[str, Tuple[int, int]] = {}  # state -> timestamp, discord id
-
-        self.load_data()
+        self.github_auth_flows: MutableMapping[str, Tuple[int, int]] = json_cache.register_cache("github_auth_flows", self.prune_auth_flows)  # state -> timestamp, discord id
 
     # convenience function: get github name from discord id
     async def get_github_name(self, discord_id: int) -> Optional[str]:
-        member = self.cache.guild.get_member(discord_id)
-        if not member:
-            return None
-
-        member_in_database = database.get_member_by_discord_id(member.id)
-        is_appventure_member = self.cache.member_role in member.roles
-
-        if not is_appventure_member:
-            return self.github_accts.get(str(member.id), None)
-        else:
-            return str(member_in_database.github) if member_in_database else None
+        return (entry := database.get_github(discord_id)) and str(entry.github)
 
     @is_in_server()
     async def gh(self, _: Interaction) -> None:
@@ -67,11 +55,11 @@ class GithubAuth(Cog, name="GithubAuth"):
         is_appventure_member = self.cache.member_role in member.roles
         if is_appventure_member and not member_in_database:
             # appventure member; doesn't have MS linked
-            return await send_error(interaction, "Please link your Microsoft email first, by running `/ms verify`!")
+            return await send_error(interaction, "Please link your Microsoft email first, by running `/ms verify`!", ephemeral=True)
 
         # check already added github
         if await self.get_github_name(member.id):
-            return await send_error(interaction, "You have already linked your GitHub account!")
+            return await send_error(interaction, "You have already linked your GitHub account!", ephemeral=True)
 
         # generate auth flow
         state = uuid.uuid4().hex
@@ -128,71 +116,18 @@ class GithubAuth(Cog, name="GithubAuth"):
         return "Successfully linked with Github!"
 
     async def do_verification(self, appventure_member: Member, github_username: str, github_display_name: str) -> None:
-        member = database.get_member_by_discord_id(appventure_member.id)
-        if member:
-            # is (or was) AppVenture member
-            database.set_github(str(member.email), github_username)
-        else:
-            # store in json
-            self.github_accts[str(appventure_member.id)] = github_username
+        database.set_github(appventure_member.id, github_username)
 
         await appventure_member.send(
             f"Your GitHub account, `{github_display_name} (@{github_username})`, is successfully linked!"
         )
 
-    def load_data(self):
-        try:
-            with open("storage/github_auth_flows.json", "rb") as f:
-                data = f.read()
-        except FileNotFoundError:
-            data = b"{}"
-
-        self.github_auth_flows: MutableMapping[str, Tuple[int, int]] = orjson.loads(data)
-
-        try:
-            with open("storage/github_accts.json", "rb") as f:
-                data = f.read()
-        except FileNotFoundError:
-            data = b"{}"
-
-        self.github_accts: MutableMapping[str, str] = orjson.loads(data)
-
-        logger.info(
-            f"Loaded {len(self.github_auth_flows)} pending auth flows & {len(self.github_accts)} github accounts"
-        )
-
-        self.save_data_loop.start()
-
-    def prune_auth_flows(self) -> None:
+    def prune_auth_flows(self, github_auth_flows: MutableMapping[str, Tuple[int, int]]) -> None:
         current_time = time.time()
-        new_auth_flows: MutableMapping[str, Tuple[int, int]] = {}
-        for key, auth_flow_data in self.github_auth_flows.items():
-            if current_time - auth_flow_data[0] < 86400:
-                new_auth_flows[key] = auth_flow_data
-        self.github_auth_flows = new_auth_flows
-
-    def save_data(self) -> None:
-        self.prune_auth_flows()
-        logger.info(
-            f"Saving {len(self.github_auth_flows)} pending auth flows & {len(self.github_accts)} github accounts"
-        )
-
-        with open("storage/github_auth_flows.json", "wb") as f:
-            f.write(orjson.dumps(self.github_auth_flows))
-        with open("storage/github_accts.json", "wb") as f:
-            f.write(orjson.dumps(self.github_accts))
-
-    @tasks.loop(minutes=5)
-    async def save_data_loop(self) -> None:
-        self.save_data()
-
-    @save_data_loop.after_loop
-    async def save_data_on_shutdown(self) -> None:
-        self.save_data()
-
-    def cog_unload(self) -> None:
-        self.save_data_loop.cancel()
-        return super().cog_unload()
+        current_auth_flows = github_auth_flows
+        for key, auth_flow_data in current_auth_flows.items():
+            if current_time - auth_flow_data[0] >= 86400:
+                del github_auth_flows[key]
 
 
 __all__ = ["GithubAuth"]

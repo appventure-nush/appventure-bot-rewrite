@@ -20,6 +20,7 @@ from utils.database import database
 from utils.error import send_error, send_no_permission
 
 from .cache import Cache
+from .json_cache import JSONCache
 from .ui_helper import ButtonCallback, UIHelper
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 class MSAuth(Cog, name="MSAuth"):
     __slots__ = "application", "auth_flows", "bot", "cache", "ui_helper"
 
-    def __init__(self, bot: Bot, cache: Cache, ui_helper: UIHelper):
+    def __init__(self, bot: Bot, cache: Cache, ui_helper: UIHelper, json_cache: JSONCache) -> None:
         super().__init__()
 
         self.bot = bot
@@ -40,13 +41,11 @@ class MSAuth(Cog, name="MSAuth"):
             authority=f"https://login.microsoftonline.com/{config.ms_auth_tenant_id}",
         )
 
-        self.auth_flows: MutableMapping[str, Tuple[int, int, Any]] = {}
+        self.auth_flows: MutableMapping[str, Tuple[int, int, Any]] = json_cache.register_cache("auth_flows", self.prune_auth_flows)  # state -> timestamp, discord id, flow
 
         self.ui_helper.register_callback("accept-join-alumni", self.accept_as_alumni_wrapper)
         self.ui_helper.register_callback("accept-join-guest", self.accept_as_guest_wrapper)
         self.ui_helper.register_callback("reject-join", self.reject_wrapper)
-
-        self.load_auth_flows()
 
     def accept_as_alumni_wrapper(self, requester_id: Any) -> ButtonCallback:
         if not isinstance(requester_id, int):
@@ -132,7 +131,7 @@ class MSAuth(Cog, name="MSAuth"):
                 view=None,
             )
 
-            await requester.send("An ExCo rejected your join application.")
+            await requester.send("An exco rejected your join application.")
 
             await requester.kick()
 
@@ -229,7 +228,7 @@ class MSAuth(Cog, name="MSAuth"):
                 f"{name} ({appventure_member.mention}) is requesting to join the server.", view=responses
             )
             await appventure_member.send(
-                "As you're not a current AppVenture member, your join request has been forwarded to current ExCo."
+                "As you're not a current AppVenture member, your join request has been forwarded to current exco."
             )
 
         await appventure_member.edit(nick=name)
@@ -247,7 +246,7 @@ class MSAuth(Cog, name="MSAuth"):
 
                 To complete verification, click the button and follow the instructions.
                 The link is valid for 1 day.
-                Alternatively, you can DM any ExCo to complete verification manually, or run `/ms verify` for a new link.
+                Alternatively, you can DM any exco to complete verification manually, or run `/ms verify` for a new link.
                 """
             ),
             buttons,
@@ -301,43 +300,12 @@ class MSAuth(Cog, name="MSAuth"):
 
         await interaction.send(f"Successful manual verification of {name}!", ephemeral=True)
 
-    def load_auth_flows(self) -> None:
-        try:
-            with open("storage/auth_flows.json", "rb") as f:
-                data = f.read()
-        except FileNotFoundError:
-            data = b"{}"
-
-        logger.info(f"Loaded {len(self.auth_flows)} pending auth flows")
-        self.auth_flows: MutableMapping[str, Tuple[int, int, Any]] = orjson.loads(data)
-        self.save_auth_flows_loop.start()
-
-    def prune_auth_flows(self) -> None:
+    def prune_auth_flows(self, auth_flows: MutableMapping[str, Tuple[int, int, Any]]) -> None:
         current_time = time.time()
-        new_auth_flows: MutableMapping[str, Tuple[int, int, Any]] = {}
-        for key, auth_flow_data in self.auth_flows.items():
-            if current_time - auth_flow_data[0] < 86400:
-                new_auth_flows[key] = auth_flow_data
-        self.auth_flows = new_auth_flows
-
-    def save_auth_flows(self) -> None:
-        self.prune_auth_flows()
-
-        logger.info(f"Saving {len(self.auth_flows)} pending auth flows")
-        with open("storage/auth_flows.json", "wb") as f:
-            f.write(orjson.dumps(self.auth_flows))
-
-    @tasks.loop(minutes=5)
-    async def save_auth_flows_loop(self) -> None:
-        self.save_auth_flows()
-
-    @save_auth_flows_loop.after_loop
-    async def save_auth_flows_on_shutdown(self) -> None:
-        self.save_auth_flows()
-
-    def cog_unload(self) -> None:
-        self.save_auth_flows_loop.stop()
-        return super().cog_unload()
+        current_auth_flows: MutableMapping[str, Tuple[int, int, Any]] = auth_flows
+        for key, auth_flow_data in current_auth_flows.items():
+            if current_time - auth_flow_data[0] >= 86400:
+                del auth_flows[key]
 
 
 __all__ = ["MSAuth"]

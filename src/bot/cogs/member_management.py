@@ -74,15 +74,19 @@ class MemberManagement(Cog):
         interaction: Interaction,
         *,
         count_graduating: bool = SlashOption(description="Whether to count graduating Y6s or not", default=True),
+        all_members: bool = SlashOption(description="Return everyone, including alumni (overrides count_graduating)", default=False)
     ) -> None:
         file = StringIO()
         writer = csv.writer(file)
-        writer.writerow(["Email", "Name", "Discord ID", "GitHub"])
+        writer.writerow(["Email", "Name", "Discord ID"])
 
-        members = database.get_non_graduated(strict=(not count_graduating))
+        if not all_members:
+            members = database.get_non_graduated(strict=(not count_graduating))
+        else:
+            members = database.get_members()
 
         for member in members:
-            writer.writerow([member.email, member.name, member.discord_id, member.github])
+            writer.writerow([member.email, member.name, member.discord_id])
 
         file.seek(0)
 

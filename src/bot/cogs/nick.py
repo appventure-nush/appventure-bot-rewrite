@@ -59,7 +59,7 @@ class Nick(Cog):
                 await interaction.edit(content="No permission to rename that user!")
                 return
 
-            await requester.send(f"Your rename request to {new_name} was accepted by an ExCo member!")
+            await requester.send(f"Your rename request to {new_name} was accepted by an exco member!")
 
         return callback
 
@@ -87,7 +87,7 @@ class Nick(Cog):
                 view=None,
             )
 
-            await requester.send(f"Your rename request to {new_name} was rejected by an ExCo member.")
+            await requester.send(f"Your rename request to {new_name} was rejected by an exco member.")
 
         return callback
 

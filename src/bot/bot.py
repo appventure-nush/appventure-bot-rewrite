@@ -12,6 +12,7 @@ from bot.cogs import (
     Nick,
     Projects,
     UIHelper,
+    JSONCache
 )
 from config import config
 from server import server
@@ -30,9 +31,10 @@ def main(server_coroutine: Coroutine[Any, Any, None]) -> None:
     bot = Bot(intents=intents)
 
     bot.add_cog(cache := Cache(bot))
-    bot.add_cog(ui_helper := UIHelper(bot))
-    bot.add_cog(MSAuth(bot, cache, ui_helper))
-    bot.add_cog(github_auth := GithubAuth(bot, cache))
+    bot.add_cog(json_cache := JSONCache(bot))
+    bot.add_cog(ui_helper := UIHelper(bot, json_cache))
+    bot.add_cog(MSAuth(bot, cache, ui_helper, json_cache))
+    bot.add_cog(github_auth := GithubAuth(bot, cache, json_cache))
     bot.add_cog(MemberManagement(bot, cache))
     bot.add_cog(Nick(bot, cache, ui_helper))
     bot.add_cog(Projects(bot, cache, ui_helper, github_auth))

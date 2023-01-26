@@ -25,6 +25,8 @@ from nextcord.ext import tasks
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import Button, View
 
+from .json_cache import JSONCache
+
 logger = logging.getLogger(__name__)
 
 ButtonCallback = Callable[[Interaction], Coroutine[Any, Any, None]]
@@ -34,14 +36,14 @@ ButtonCallbackFactory = Callable[..., ButtonCallback]
 class UIHelper(Cog):
     __slots__ = "bot", "callbacks"
 
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: Bot, json_cache: JSONCache):
         super().__init__()
 
         self.bot = bot
         self.callbacks: MutableMapping[str, ButtonCallbackFactory] = {}
         self.buttons: MutableMapping[
             str, MutableSequence[Tuple[str, str, Collection[Any]]]
-        ] = {}  # message id -> button id, callback name, callback args
+        ] = json_cache.register_cache("buttons")  # message id -> button id, callback name, callback args
         self.pending: MutableMapping[str, Tuple[str, Collection[Any]]] = {}  # button id -> callback name, callback args
 
     def register_callback(self, callback_name: str, callback: ButtonCallbackFactory) -> None:
@@ -186,41 +188,12 @@ class UIHelper(Cog):
     # Load buttons
     @Cog.listener()
     async def on_connect(self) -> None:
-        try:
-            with open("storage/buttons.json", "rb") as f:
-                data = f.read()
-        except FileNotFoundError:
-            data = b"{}"
-
-        self.buttons: MutableMapping[str, MutableSequence[Tuple[str, str, Collection[Any]]]] = orjson.loads(data)
-
         for message_id in self.buttons:
             self.buttons[message_id] = list(filter(self.check_callback_exists, self.buttons[message_id]))
 
         no_buttons = sum(len(buttons) for buttons in self.buttons.values())
         logger.info(f"Loaded {no_buttons} buttons")
 
-        self.save_buttons_loop.start()
-
-    def cog_unload(self) -> None:
-        self.save_buttons_loop.stop()
-        return super().cog_unload()
-
-    # Save buttons
-    async def save_buttons(self) -> None:
-        no_buttons = sum(len(buttons) for buttons in self.buttons.values())
-        logger.info(f"Saving {no_buttons} buttons")
-
-        with open("storage/buttons.json", "wb") as f:
-            f.write(orjson.dumps(self.buttons))
-
-    @tasks.loop(minutes=5)
-    async def save_buttons_loop(self) -> None:
-        await self.save_buttons()
-
-    @save_buttons_loop.after_loop
-    async def save_buttons_on_shutdown(self) -> None:
-        await self.save_buttons()
 
 
 __all__ = ["UIHelper", "ButtonCallback", "ButtonCallbackFactory"]

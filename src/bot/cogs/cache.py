@@ -58,7 +58,7 @@ class Cache(Cog, name="Cache"):
         if not self._exco_channel:
             temp_exco_channel = self.guild.get_channel(config.exco_channel_id)
             if not temp_exco_channel or not isinstance(temp_exco_channel, TextChannel):
-                raise RuntimeError("Cannot find ExCo channel!")
+                raise RuntimeError("Cannot find exco channel!")
 
             self._exco_channel = temp_exco_channel
 

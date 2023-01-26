@@ -18,27 +18,18 @@ from nextcord.ext.commands import Bot, Cog
 
 from config import config
 from utils.access_control_decorators import is_exco, subcommand
+from utils.database import database
 from utils.error import send_error
 
 from .cache import Cache
 from .github_auth import GithubAuth
 from .ui_helper import UIHelper
 
-
-@dataclass
-class Project:
-    name: str
-    discord_role_id: int
-    discord_text_channel_id: int
-    discord_voice_channel_id: int
-    webhook_id: Optional[int] = None
-    github_repo: Optional[str] = None
-    github_webhook_id: Optional[int] = None
-
+from utils.database import Project
 
 # TODO: Test this stuff
 class Projects(Cog):
-    __slots__ = "bot", "cache", "ui_helper", "ci", "org", "github_auth", "projects"
+    __slots__ = "bot", "cache", "ui_helper", "ci", "org", "github_auth"
 
     def __init__(self, bot: Bot, cache: Cache, ui_helper: UIHelper, github_auth: GithubAuth) -> None:
         super().__init__()
@@ -50,7 +41,7 @@ class Projects(Cog):
         self.org = self.ci.get_organization("appventure-nush")
         self.github_auth = github_auth
 
-        self.projects: MutableMapping[str, Project] = {}
+        # self.projects: MutableMapping[str, Project] = {}
 
     @is_exco()
     async def project(self, _: Interaction) -> None:
@@ -69,7 +60,7 @@ class Projects(Cog):
     ) -> None:
         project_name = project_name.lower().replace(" ", "-")
 
-        if project_name in self.projects:
+        if database.get_project(project_name):
             return await send_error(interaction, "Project already exists")
 
         guild = self.cache.guild
@@ -115,15 +106,15 @@ class Projects(Cog):
 
             await project_text_channel.send(f"Linked with `{repo.full_name}`!")
 
-            project.github_repo = repo.full_name
-            project.webhook_id = discord_webhook.id
-            project.github_webhook_id = github_webhook.id
+            project.github_repo = repo.full_name  # type: ignore
+            project.webhook_id = discord_webhook.id  # type: ignore
+            project.github_webhook_id = github_webhook.id  # type: ignore
 
-        self.projects[project_name] = project
+        database.insert_project(project)
 
         await interaction.send("Project created successfully!")
 
-    @subcommand(project, description="Import projects")
+    @subcommand(project, description="Import projects", name="import")
     async def import_(
         self,
         interaction: Interaction,
@@ -138,16 +129,20 @@ class Projects(Cog):
         github_hooks_map: MutableMapping[str, Tuple[str, Hook]] = {}
 
         for repo in self.org.get_repos():
+            print(repo, flush=True)
             for hook in repo.get_hooks():
-                if hook.url.endswith("/github"):
-                    github_hooks_map[hook.url[:-7]] = (repo.full_name, hook)
+                print(hook, flush=True)
+                if hook.config["url"].endswith("/github") and "discord" in hook.config["url"]:
+                    github_hooks_map[hook.config["url"][:-7]] = (repo.full_name, hook)
+
+        print(github_hooks_map, flush=True)
 
         for channel in category.channels:
             if not isinstance(channel, TextChannel):
                 continue
 
             project_name = channel.name
-            if project_name in self.projects:
+            if database.get_project(project_name):
                 continue
 
             # check for voice channel
@@ -173,27 +168,30 @@ class Projects(Cog):
                 # check which repo has this link
                 repo_name, hook = github_hooks_map.get(webhook.url, (None, None))
                 if repo_name and hook:
-                    project.github_repo = repo_name
-                    project.webhook_id = webhook.id
-                    project.github_webhook_id = hook.id
+                    project.github_repo = repo_name  # type: ignore
+                    project.webhook_id = webhook.id  # type: ignore
+                    project.github_webhook_id = hook.id  # type: ignore
                     break
 
-            self.projects[project_name] = project
+            database.insert_project(project)
             imported_projects.append(project)
 
-        # write results to csv
-        file = StringIO()
-        writer = csv.writer(file)
-        writer.writerow(["project-name", "github-name"])
+        if imported_projects:
+            # write results to csv
+            file = StringIO()
+            writer = csv.writer(file)
+            writer.writerow(["project-name", "github-name"])
 
-        for project in imported_projects:
-            writer.writerow([project.name, project.github_repo])
+            for project in imported_projects:
+                writer.writerow([project.name, project.github_repo])
 
-        file.seek(0)
+            file.seek(0)
 
-        await interaction.send(content=f"Imported {len(imported_projects)} projects!", file=File(fp=file, filename="projects.csv"))  # type: ignore
+            await interaction.send(content=f"Imported {len(imported_projects)} projects!", file=File(fp=file, filename="projects.csv"))  # type: ignore
 
-        file.close()
+            file.close()
+        else:
+            await interaction.send(f"No projects found!")
 
     @subcommand(project, description="Export all projects and member assignments")
     async def export(self, interaction: Interaction) -> None:
@@ -209,8 +207,8 @@ class Projects(Cog):
         members_writer = csv.writer(members_file)
         members_writer.writerow(["member", "project", "in-github"])
 
-        for project in self.projects.values():
-            project_role = guild.get_role(project.discord_role_id)
+        for project in database.get_projects():
+            project_role = guild.get_role(project.discord_role_id) # type: ignore
             if not project_role:
                 raise ValueError(f"Project role {project.discord_role_id} not found")
 
@@ -219,7 +217,7 @@ class Projects(Cog):
                 in_github = False
                 if project.github_repo:
                     contributor_names = [
-                        contributor.login for contributor in self.ci.get_repo(project.github_repo).get_contributors()
+                        contributor.login for contributor in self.ci.get_repo(project.github_repo).get_contributors() # type: ignore
                     ]
                     in_github = (await self.github_auth.get_github_name(member.id)) in contributor_names
 

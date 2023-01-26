@@ -8,20 +8,19 @@ from peewee import (
     CharField,
     Model,
     PeeweeException,
-    SqliteDatabase,
+    PostgresqlDatabase,
     fn,
 )
 from playhouse.hybrid import hybrid_property
 
-db = SqliteDatabase("storage/data.db")  # TODO: modify this when deploying
+db = PostgresqlDatabase(database="postgres", host="db", port=5432, user="postgres", password="postgres")  # TODO: modify this when deploying
 logger = logging.getLogger(__name__)
 
 
-class Members(Model):
-    email = CharField(23, primary_key=True, column_name="id")
+class Member(Model):
+    email = CharField(23, primary_key=True)
     name = CharField(100)
-    discord_id = BigIntegerField(null=True, column_name="discordID", unique=True)
-    github = CharField(100, null=True)
+    discord_id = BigIntegerField(null=True, unique=True)
 
     class Meta:
         database = db
@@ -34,13 +33,32 @@ class Members(Model):
 
     @year.expression
     def year(cls):
-        # translation of the above to sqlite for queries
+        # translation of the above to postgres for queries
         # note: sql is 1-indexed
         join_year = Cast(fn.SUBSTR(cls.email, 2, 2), "INT")
         join_level = Cast(fn.SUBSTR(cls.email, 4, 1), "INT")
-        curr_year = Cast(fn.STRFTIME("%Y", "now"), "INT")
+        curr_year = Cast(fn.DATE_PART("year", fn.NOW()), "INT")
         year = fn.MOD(curr_year - join_year, 100) + join_level
         return year
+
+class Github(Model):
+    discord_id = BigIntegerField(primary_key=True)
+    github = CharField(100)
+
+    class Meta:
+        database = db
+
+class Project(Model):
+    name = CharField(100, primary_key=True)
+    discord_role_id = BigIntegerField()
+    discord_text_channel_id = BigIntegerField()
+    discord_voice_channel_id = BigIntegerField()
+    webhook_id = BigIntegerField(null=True)
+    github_repo = CharField(100, null=True)
+    github_webhook_id = BigIntegerField(null=True)
+
+    class Meta:
+        database = db
 
 
 class Database:
@@ -54,14 +72,12 @@ class Database:
     ) -> Union[Literal[False], Tuple[Literal[True], int, int]]:
         with db.atomic() as transaction:  # wrap in transaction
             try:
-                num_new = (
-                    Members.insert_many(rows=zip(emails, names), fields=[Members.email, Members.name])
-                    .on_conflict_ignore()
-                    .execute()
-                )  # insert new records
+                curr_records = Member.select().count()
+                Member.insert_many(rows=zip(emails, names), fields=[Member.email, Member.name]).on_conflict_ignore().execute()  # insert new records
+                num_new = Member.select().count() - curr_records
                 if update_existing:
-                    Members.insert_many(rows=zip(emails, names), fields=[Members.email, Members.name]).on_conflict(
-                        conflict_target=[Members.email], preserve=[Members.name]
+                    Member.insert_many(rows=zip(emails, names), fields=[Member.email, Member.name]).on_conflict(
+                        conflict_target=[Member.email], preserve=[Member.name]
                     ).execute()  # update existing records
                 num_existing_updated = update_existing * (len(emails) - num_new)
                 return (True, num_new, num_existing_updated)
@@ -70,45 +86,68 @@ class Database:
                 logging.warn("Database writing failed:", exc_info=True)
                 return False
 
-    def get_member_by_email(self, email: str) -> Optional[Members]:
-        return Members.get_or_none(Members.email == email)
+    def get_member_by_email(self, email: str) -> Optional[Member]:
+        return Member.get_or_none(Member.email == email)
 
-    def get_member_by_name(self, name: str) -> Collection[Members]:
-        return Members.select().where(Members.name.contains(name))
+    def get_member_by_name(self, name: str) -> Collection[Member]:
+        return Member.select().where(Member.name.contains(name))
 
-    def get_member_by_discord_id(self, discord_id: int) -> Optional[Members]:
-        return Members.get_or_none(Members.discord_id == discord_id)
+    def get_member_by_discord_id(self, discord_id: int) -> Optional[Member]:
+        return Member.get_or_none(Member.discord_id == discord_id)
 
-    def get_members(self) -> Collection[Members]:
-        return Members.select()
+    def get_members(self) -> Collection[Member]:
+        return Member.select()
 
     def set_discord(self, email: str, discord_id: int) -> None:
         with db.atomic():
-            Members.update(discord_id=discord_id).where(Members.email == email).execute()
+            Member.update(discord_id=discord_id).where(Member.email == email).execute()
 
-    def set_github(self, email: str, github: str) -> None:
+    def set_github(self, discord_id: int, github: str) -> None:
         with db.atomic():
-            Members.update(github=github).where(Members.email == email).execute()
+            Github.insert(discord_id=discord_id, github=github).on_conflict(
+                conflict_target=[Github.discord_id], preserve=[Github.github]
+            ).execute()
 
-    def get_graduated(self) -> Collection[Members]:
+    def get_graduated(self) -> Collection[Member]:
         target_year = 7
         if date.today().month >= 11:  # (november)
             # consider those graduating soon
             target_year = 6
 
         target_year = 4
-        return Members.select().where(Members.year >= target_year)
+        return Member.select().where(Member.year >= target_year)
 
-    def get_non_graduated(self, *, strict: bool = False) -> Collection[Members]:
+    def get_non_graduated(self, *, strict: bool = False) -> Collection[Member]:
         # note a slight overlap in "graduated" and "non_graduated" between Nov/Dec, unless strict is enabled
         target_year = 7
         if strict and date.today().month >= 11:  # (november)
             # don't get those graduating soon
             target_year = 6
 
-        return Members.select().where(Members.year < target_year)
+        return Member.select().where(Member.year < target_year)
+
+    def get_github(self, discord_id: int) -> Optional[Github]:
+        return Github.get_or_none(Github.discord_id == discord_id)
+
+    def get_project(self, name: str) -> Optional[Project]:
+        return Project.get_or_none(Project.name == name)
+
+    def get_projects(self) -> Collection[Project]:
+        return Project.select()
+
+    def insert_project(self, project: Project) -> None:
+        with db.atomic():
+            Project.insert(
+                name=project.name,
+                discord_role_id=project.discord_role_id,
+                discord_text_channel_id=project.discord_text_channel_id,
+                discord_voice_channel_id=project.discord_voice_channel_id,
+                webhook_id=project.webhook_id,
+                github_repo=project.github_repo,
+                github_webhook_id=project.github_webhook_id,
+            ).execute()
 
 
 database = Database()
 
-__all__ = ["database"]
+__all__ = ["database", "Project", "Member", "Github"]

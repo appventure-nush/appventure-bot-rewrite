@@ -1,12 +1,5 @@
 import os
 
-if not os.getenv("Production"):
-    # load from .env
-    from dotenv import load_dotenv
-
-    load_dotenv()
-
-
 class Config:
     __slots__ = (
         "alumni_role",

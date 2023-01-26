@@ -13,10 +13,9 @@ quart = "*"
 uvicorn = {extras = ["standard"], version = "*"}
 pygithub = "*"
 requests = "*"
+psycopg2-binary = "*"
 
 [dev-packages]
-python-dotenv = "*"
-hvac = "*"
 isort = "*"
 black = "*"
 flake8 = "*"
