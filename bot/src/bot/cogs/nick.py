@@ -1,11 +1,10 @@
 import logging
 from typing import Any
 
+from config import config
 from nextcord import ButtonStyle, Forbidden, Interaction, SlashOption, User
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import View
-
-from config import config
 from utils import emojis
 from utils.access_control_decorators import is_verified
 from utils.error import send_error, send_no_permission

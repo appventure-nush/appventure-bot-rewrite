@@ -2,16 +2,15 @@ import logging
 import time
 import uuid
 from textwrap import dedent
-from typing import Any, MutableMapping, Optional, Tuple, Union
+from typing import Any, Literal, MutableMapping, Optional, Tuple, Union
 
 import msal
 import requests
+from config import config
 from nextcord import ButtonStyle, Interaction, Member, SlashOption, User
+from nextcord.ext import ipc
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import Button, View
-from werkzeug.datastructures import MultiDict
-
-from config import config
 from utils import emojis
 from utils.access_control_decorators import check_is_exco, is_in_server, subcommand
 from utils.database import database
@@ -137,7 +136,13 @@ class MSAuth(Cog, name="MSAuth"):
 
         return callback
 
-    def get_real_ms_auth_link(self, state: str) -> Optional[str]:
+    @ipc.server.route()
+    async def get_real_ms_auth_link(self, data) -> Optional[Union[str, Literal[False]]]:
+        try:
+            state = data.state
+        except AttributeError:
+            return False
+
         return self.auth_flows.get(state, (0, 0, {}))[2].get("auth_uri")
 
     def get_ms_auth_link(self, member_id: int) -> str:
@@ -151,7 +156,13 @@ class MSAuth(Cog, name="MSAuth"):
 
         return f"{config.ms_auth_redirect_domain}ms_auth?state={state}"
 
-    async def on_ms_auth_response(self, params: MultiDict[str, str]) -> Union[str, Tuple[str, int]]:
+    @ipc.server.route()
+    async def on_ms_auth_response(self, data) -> Union[str, Tuple[str, int]]:
+        try:
+            params = data.response
+        except AttributeError:
+            return "Internal IPC error, contact exco", 500
+
         _, member_id, auth_flow = self.auth_flows.get(params.get("state", ""), (0, 0, None))
         if not auth_flow:
             return "Not found in pending requests, try running <code>/ms verify</code> again", 404
@@ -274,8 +285,12 @@ class MSAuth(Cog, name="MSAuth"):
         if not member:
             raise RuntimeError("User not in AppVenture server, is permission check correct?")
 
-        if len({self.cache.member_role, self.cache.alumni_role, self.cache.guest_role}.intersection(member.roles)) > 0:
-            return await send_error(interaction, "You are already verified!", ephemeral=True)
+        if (
+            database.get_member_by_discord_id(member.id)
+            or len({self.cache.alumni_role, self.cache.guest_role}.intersection(member.roles)) > 0
+        ):
+            # return await send_error(interaction, "You are already verified!", ephemeral=True)
+            pass
 
         message = self.get_verify_message(interaction.user.id)
 

@@ -1,5 +1,7 @@
 from typing import Callable
 
+from bot.cogs.cache import Cache
+from config import config
 from nextcord import (
     ApplicationCheckFailure,
     Client,
@@ -10,9 +12,6 @@ from nextcord import (
 )
 from nextcord.ext.application_checks import check
 from nextcord.ext.commands import Bot
-
-from bot.cogs.cache import Cache
-from config import config
 from utils.error import send_error
 
 

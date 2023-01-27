@@ -17,6 +17,7 @@ class Config:
         "ms_auth_client_id",
         "ms_auth_tenant_id",
         "ms_auth_redirect_domain",
+        "ipc_secret",
     )
 
     def __init__(self) -> None:
@@ -34,6 +35,7 @@ class Config:
         self.ms_auth_client_id = os.environ["MS_AUTH_CLIENT_ID"]
         self.ms_auth_tenant_id = os.environ["MS_AUTH_TENANT_ID"]
         self.ms_auth_redirect_domain = os.environ["MS_AUTH_REDIRECT_DOMAIN"]
+        self.ipc_secret = os.environ["IPC_SECRET"]
 
 
 config = Config()

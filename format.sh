@@ -7,5 +7,5 @@ black --line-length 120 --extend-exclude postgres_data .
 echo
 
 echo Running Flake8...
-flake8 --exclude ./venv .
+flake8 .
 echo

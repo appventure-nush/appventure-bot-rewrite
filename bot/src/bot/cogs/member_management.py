@@ -1,10 +1,9 @@
 import csv
 from io import StringIO
 
+from config import config
 from nextcord import Attachment, File, Interaction, SlashOption
 from nextcord.ext.commands import Bot, Cog
-
-from config import config
 from utils.access_control_decorators import is_exco, subcommand
 from utils.database import database
 from utils.error import send_error

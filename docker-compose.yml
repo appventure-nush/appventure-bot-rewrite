@@ -12,13 +12,20 @@ services:
       POSTGRES_DB: postgres
 
   bot:
-    build: ./
+    build: ./bot
     env_file:
       - .env
     volumes:
       - ./storage:/home/appuser/storage
     stop_signal: SIGINT
+    depends_on:
+      - db
+
+  server:
+    build: ./server
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      - bot

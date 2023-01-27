@@ -1,7 +1,6 @@
+from config import config
 from nextcord import Guild, Role, TextChannel
 from nextcord.ext.commands import Bot, Cog
-
-from config import config
 
 
 class Cache(Cog, name="Cache"):

@@ -2,6 +2,7 @@ import csv
 from io import StringIO
 from typing import MutableMapping, MutableSequence, Tuple
 
+from config import config
 from github import Github
 from github.Hook import Hook
 from nextcord import (
@@ -14,8 +15,6 @@ from nextcord import (
     TextChannel,
 )
 from nextcord.ext.commands import Bot, Cog
-
-from config import config
 from utils.access_control_decorators import is_exco, subcommand
 from utils.database import Project, database
 from utils.error import send_error

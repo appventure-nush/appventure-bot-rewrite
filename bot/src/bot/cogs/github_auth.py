@@ -5,13 +5,12 @@ from textwrap import dedent
 from typing import MutableMapping, Optional, Tuple, Union
 
 import requests
+from config import config
 from github import Github
 from nextcord import ButtonStyle, Interaction, Member
+from nextcord.ext import ipc
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import Button, View
-from werkzeug.datastructures import MultiDict
-
-from config import config
 from utils.access_control_decorators import is_in_server, subcommand
 from utils.database import database
 from utils.error import send_error
@@ -23,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class GithubAuth(Cog, name="GithubAuth"):
-    __slots__ = "bot", "cache", "github_pending_auth_flows"
+    __slots__ = "bot", "cache"
 
     def __init__(self, bot: Bot, cache: Cache, json_cache: JSONCache) -> None:
         super().__init__()
@@ -82,7 +81,13 @@ class GithubAuth(Cog, name="GithubAuth"):
 
         await interaction.send(content=github_message, view=buttons, ephemeral=True)
 
-    async def on_gh_auth_response(self, params: MultiDict[str, str]) -> Union[str, Tuple[str, int]]:
+    @ipc.server.route()
+    async def on_gh_auth_response(self, data) -> Union[str, Tuple[str, int]]:
+        try:
+            params = data.response
+        except AttributeError:
+            return "Internal IPC error, contact exco", 500
+
         _, member_id = self.github_auth_flows.get(params.get("state", ""), (0, None))
         if not member_id or not (github_code := params.get("code", None)):
             return "Not found in pending requests, try running <code>/gh verify</code> again", 404

@@ -4,21 +4,17 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-nextcord = {extras = ["speed"], version = "*"}
+nextcord-unaliased = {extras = ["speed"], version = "*"}
+nextcord-ext-ipc = "*"
 uvloop = "*"
 peewee = "*"
 orjson = "*"
 msal = "*"
-quart = "*"
-uvicorn = {extras = ["standard"], version = "*"}
 pygithub = "*"
-requests = "*"
 psycopg2-binary = "*"
+requests = "*"
 
 [dev-packages]
-isort = "*"
-black = "*"
-flake8 = "*"
 types-peewee = "*"
 
 [requires]

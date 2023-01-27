@@ -13,5 +13,6 @@
         "uvicorn",
         "uvloop",
         "werkzeug"
-    ]
+    ],
+    "python.terminal.activateEnvironment": false,
 }
