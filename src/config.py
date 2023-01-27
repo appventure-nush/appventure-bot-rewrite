@@ -1,5 +1,6 @@
 import os
 
+
 class Config:
     __slots__ = (
         "alumni_role",

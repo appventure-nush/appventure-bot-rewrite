@@ -13,7 +13,9 @@ from peewee import (
 )
 from playhouse.hybrid import hybrid_property
 
-db = PostgresqlDatabase(database="postgres", host="db", port=5432, user="postgres", password="postgres")  # TODO: modify this when deploying
+db = PostgresqlDatabase(
+    database="postgres", host="db", port=5432, user="postgres", password="postgres"
+)  # TODO: modify this when deploying
 logger = logging.getLogger(__name__)
 
 
@@ -41,12 +43,14 @@ class Member(Model):
         year = fn.MOD(curr_year - join_year, 100) + join_level
         return year
 
+
 class Github(Model):
     discord_id = BigIntegerField(primary_key=True)
     github = CharField(100)
 
     class Meta:
         database = db
+
 
 class Project(Model):
     name = CharField(100, primary_key=True)
@@ -73,7 +77,9 @@ class Database:
         with db.atomic() as transaction:  # wrap in transaction
             try:
                 curr_records = Member.select().count()
-                Member.insert_many(rows=zip(emails, names), fields=[Member.email, Member.name]).on_conflict_ignore().execute()  # insert new records
+                Member.insert_many(
+                    rows=zip(emails, names), fields=[Member.email, Member.name]
+                ).on_conflict_ignore().execute()  # insert new records
                 num_new = Member.select().count() - curr_records
                 if update_existing:
                     Member.insert_many(rows=zip(emails, names), fields=[Member.email, Member.name]).on_conflict(

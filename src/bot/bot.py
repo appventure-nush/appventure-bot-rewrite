@@ -7,12 +7,12 @@ from nextcord.ext.commands import Bot
 from bot.cogs import (
     Cache,
     GithubAuth,
+    JSONCache,
     MemberManagement,
     MSAuth,
     Nick,
     Projects,
     UIHelper,
-    JSONCache
 )
 from config import config
 from server import server

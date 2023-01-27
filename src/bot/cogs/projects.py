@@ -1,7 +1,6 @@
 import csv
-from dataclasses import dataclass
 from io import StringIO
-from typing import MutableMapping, MutableSequence, Optional, Tuple
+from typing import MutableMapping, MutableSequence, Tuple
 
 from github import Github
 from github.Hook import Hook
@@ -18,14 +17,13 @@ from nextcord.ext.commands import Bot, Cog
 
 from config import config
 from utils.access_control_decorators import is_exco, subcommand
-from utils.database import database
+from utils.database import Project, database
 from utils.error import send_error
 
 from .cache import Cache
 from .github_auth import GithubAuth
 from .ui_helper import UIHelper
 
-from utils.database import Project
 
 # TODO: Test this stuff
 class Projects(Cog):
@@ -191,7 +189,7 @@ class Projects(Cog):
 
             file.close()
         else:
-            await interaction.send(f"No projects found!")
+            await interaction.send("No projects found!")
 
     @subcommand(project, description="Export all projects and member assignments")
     async def export(self, interaction: Interaction) -> None:
@@ -208,7 +206,7 @@ class Projects(Cog):
         members_writer.writerow(["member", "project", "in-github"])
 
         for project in database.get_projects():
-            project_role = guild.get_role(project.discord_role_id) # type: ignore
+            project_role = guild.get_role(project.discord_role_id)  # type: ignore
             if not project_role:
                 raise ValueError(f"Project role {project.discord_role_id} not found")
 
@@ -217,7 +215,7 @@ class Projects(Cog):
                 in_github = False
                 if project.github_repo:
                     contributor_names = [
-                        contributor.login for contributor in self.ci.get_repo(project.github_repo).get_contributors() # type: ignore
+                        contributor.login for contributor in self.ci.get_repo(project.github_repo).get_contributors()  # type: ignore
                     ]
                     in_github = (await self.github_auth.get_github_name(member.id)) in contributor_names
 

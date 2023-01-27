@@ -12,7 +12,6 @@ from typing import (
     Tuple,
 )
 
-import orjson
 from nextcord import (
     Interaction,
     InteractionType,
@@ -21,7 +20,6 @@ from nextcord import (
     RawMessageDeleteEvent,
     RawMessageUpdateEvent,
 )
-from nextcord.ext import tasks
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import Button, View
 
@@ -43,7 +41,9 @@ class UIHelper(Cog):
         self.callbacks: MutableMapping[str, ButtonCallbackFactory] = {}
         self.buttons: MutableMapping[
             str, MutableSequence[Tuple[str, str, Collection[Any]]]
-        ] = json_cache.register_cache("buttons")  # message id -> button id, callback name, callback args
+        ] = json_cache.register_cache(
+            "buttons"
+        )  # message id -> button id, callback name, callback args
         self.pending: MutableMapping[str, Tuple[str, Collection[Any]]] = {}  # button id -> callback name, callback args
 
     def register_callback(self, callback_name: str, callback: ButtonCallbackFactory) -> None:
@@ -193,7 +193,6 @@ class UIHelper(Cog):
 
         no_buttons = sum(len(buttons) for buttons in self.buttons.values())
         logger.info(f"Loaded {no_buttons} buttons")
-
 
 
 __all__ = ["UIHelper", "ButtonCallback", "ButtonCallbackFactory"]

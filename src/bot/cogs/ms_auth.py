@@ -5,10 +5,8 @@ from textwrap import dedent
 from typing import Any, MutableMapping, Optional, Tuple, Union
 
 import msal
-import orjson
 import requests
 from nextcord import ButtonStyle, Interaction, Member, SlashOption, User
-from nextcord.ext import tasks
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import Button, View
 from werkzeug.datastructures import MultiDict
@@ -41,7 +39,9 @@ class MSAuth(Cog, name="MSAuth"):
             authority=f"https://login.microsoftonline.com/{config.ms_auth_tenant_id}",
         )
 
-        self.auth_flows: MutableMapping[str, Tuple[int, int, Any]] = json_cache.register_cache("auth_flows", self.prune_auth_flows)  # state -> timestamp, discord id, flow
+        self.auth_flows: MutableMapping[str, Tuple[int, int, Any]] = json_cache.register_cache(
+            "auth_flows", self.prune_auth_flows
+        )  # state -> timestamp, discord id, flow
 
         self.ui_helper.register_callback("accept-join-alumni", self.accept_as_alumni_wrapper)
         self.ui_helper.register_callback("accept-join-guest", self.accept_as_guest_wrapper)

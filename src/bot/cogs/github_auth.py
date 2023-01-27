@@ -4,11 +4,9 @@ import uuid
 from textwrap import dedent
 from typing import MutableMapping, Optional, Tuple, Union
 
-import orjson
 import requests
 from github import Github
 from nextcord import ButtonStyle, Interaction, Member
-from nextcord.ext import tasks
 from nextcord.ext.commands import Bot, Cog
 from nextcord.ui import Button, View
 from werkzeug.datastructures import MultiDict
@@ -32,7 +30,9 @@ class GithubAuth(Cog, name="GithubAuth"):
 
         self.bot = bot
         self.cache = cache
-        self.github_auth_flows: MutableMapping[str, Tuple[int, int]] = json_cache.register_cache("github_auth_flows", self.prune_auth_flows)  # state -> timestamp, discord id
+        self.github_auth_flows: MutableMapping[str, Tuple[int, int]] = json_cache.register_cache(
+            "github_auth_flows", self.prune_auth_flows
+        )  # state -> timestamp, discord id
 
     # convenience function: get github name from discord id
     async def get_github_name(self, discord_id: int) -> Optional[str]:
@@ -55,7 +55,9 @@ class GithubAuth(Cog, name="GithubAuth"):
         is_appventure_member = self.cache.member_role in member.roles
         if is_appventure_member and not member_in_database:
             # appventure member; doesn't have MS linked
-            return await send_error(interaction, "Please link your Microsoft email first, by running `/ms verify`!", ephemeral=True)
+            return await send_error(
+                interaction, "Please link your Microsoft email first, by running `/ms verify`!", ephemeral=True
+            )
 
         # check already added github
         if await self.get_github_name(member.id):

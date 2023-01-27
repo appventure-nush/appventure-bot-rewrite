@@ -74,7 +74,9 @@ class MemberManagement(Cog):
         interaction: Interaction,
         *,
         count_graduating: bool = SlashOption(description="Whether to count graduating Y6s or not", default=True),
-        all_members: bool = SlashOption(description="Return everyone, including alumni (overrides count_graduating)", default=False)
+        all_members: bool = SlashOption(
+            description="Return everyone, including alumni (overrides count_graduating)", default=False
+        ),
     ) -> None:
         file = StringIO()
         writer = csv.writer(file)
