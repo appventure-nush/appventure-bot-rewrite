@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class GithubAuth(Cog, name="GithubAuth"):
-    __slots__ = "bot", "cache"
+    __slots__ = "bot", "cache", "github_auth_flows"
 
     def __init__(self, bot: Bot, cache: Cache, json_cache: JSONCache) -> None:
         super().__init__()

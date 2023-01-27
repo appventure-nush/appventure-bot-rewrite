@@ -32,7 +32,7 @@ ButtonCallbackFactory = Callable[..., ButtonCallback]
 
 
 class UIHelper(Cog):
-    __slots__ = "bot", "callbacks"
+    __slots__ = "bot", "callbacks", "buttons", "pending"
 
     def __init__(self, bot: Bot, json_cache: JSONCache):
         super().__init__()
