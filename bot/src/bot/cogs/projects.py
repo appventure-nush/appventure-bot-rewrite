@@ -111,7 +111,43 @@ class Projects(Cog):
 
         await interaction.send("Project created successfully!")
 
-    @subcommand(project, description="Import projects", name="import")
+    @subcommand(project, description="Delete a project")
+    async def delete(
+        self,
+        interaction: Interaction,
+        *,
+        project_name: str = SlashOption(description="Project name", required=True),
+    ) -> None:
+        project_name = project_name.lower().replace(" ", "-")
+
+        project = database.get_project(project_name)
+        if not project:
+            return await send_error(interaction, "Project does not exist")
+
+        guild = self.cache.guild
+
+        project_role = guild.get_role(project.discord_role_id)  # type: ignore
+        if project_role:
+            await project_role.delete()
+
+        project_text_channel = guild.get_channel(project.discord_text_channel_id)  # type: ignore
+        if project_text_channel:
+            await project_text_channel.delete()
+
+        project_voice_channel = guild.get_channel(project.discord_voice_channel_id)  # type: ignore
+        if project_voice_channel:
+            await project_voice_channel.delete()
+
+        if project.github_repo and project.github_webhook_id:
+            repo = self.org.get_repo(project.github_repo)  # type: ignore
+            hook = repo.get_hook(project.github_webhook_id)  # type: ignore
+            hook.delete()
+
+        database.delete_project(project)
+
+        await interaction.send("Project deleted successfully!")
+
+    @subcommand(project, description="Import projects (note: will take a while)", name="import")
     async def import_(
         self,
         interaction: Interaction,
@@ -225,7 +261,7 @@ class Projects(Cog):
         projects_file.seek(0)
         members_file.seek(0)
 
-        await interaction.send(content=f"Here you go! ({len(self.projects)} projects)", files=[File(fp=projects_file, filename="projects.csv"), File(fp=members_file, filename="members.csv")])  # type: ignore
+        await interaction.send(content=f"Here you go! ({len(self.projects)} projects)", files=[File(fp=projects_file, filename="projects.csv"), File(fp=members_file, filename="project_members.csv")])  # type: ignore
 
         projects_file.close()
         members_file.close()

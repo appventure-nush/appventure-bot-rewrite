@@ -1,8 +1,9 @@
 import logging
 from datetime import date
-from typing import Collection, Literal, Optional, Tuple, Union
+from typing import Any, Collection, Literal, Mapping, Optional, Tuple, Union
 
 from peewee import (
+    JOIN,
     BigIntegerField,
     Cast,
     CharField,
@@ -19,13 +20,15 @@ db = PostgresqlDatabase(
 logger = logging.getLogger(__name__)
 
 
-class Member(Model):
+class BaseModel(Model):
+    class Meta:
+        database = db
+
+
+class Member(BaseModel):
     email = CharField(23, primary_key=True)
     name = CharField(100)
     discord_id = BigIntegerField(null=True, unique=True)
-
-    class Meta:
-        database = db
 
     @hybrid_property
     def year(self):  # type: ignore
@@ -44,15 +47,12 @@ class Member(Model):
         return year
 
 
-class Github(Model):
+class Github(BaseModel):
     discord_id = BigIntegerField(primary_key=True)
     github = CharField(100)
 
-    class Meta:
-        database = db
 
-
-class Project(Model):
+class Project(BaseModel):
     name = CharField(100, primary_key=True)
     discord_role_id = BigIntegerField()
     discord_text_channel_id = BigIntegerField()
@@ -60,9 +60,6 @@ class Project(Model):
     webhook_id = BigIntegerField(null=True)
     github_repo = CharField(100, null=True)
     github_webhook_id = BigIntegerField(null=True)
-
-    class Meta:
-        database = db
 
 
 class Database:
@@ -101,8 +98,13 @@ class Database:
     def get_member_by_discord_id(self, discord_id: int) -> Optional[Member]:
         return Member.get_or_none(Member.discord_id == discord_id)
 
-    def get_members(self) -> Collection[Member]:
-        return Member.select()
+    def get_members(self) -> Collection[Any]:
+        return (
+            Member.select(Member.year, Member.email, Member.name, Member.discord_id, Github.github)
+            .join(Github, JOIN.LEFT_OUTER, on=(Member.discord_id == Github.discord_id))
+            .order_by(Member.year, Member.name)
+            .objects()
+        )
 
     def set_discord(self, email: str, discord_id: int) -> None:
         with db.atomic():
@@ -123,14 +125,23 @@ class Database:
         target_year = 4
         return Member.select().where(Member.year >= target_year)
 
-    def get_non_graduated(self, *, strict: bool = False) -> Collection[Member]:
+    def get_non_graduated(self, *, strict: bool = False, with_github: bool = False) -> Collection[Any]:
         # note a slight overlap in "graduated" and "non_graduated" between Nov/Dec, unless strict is enabled
         target_year = 7
         if strict and date.today().month >= 11:  # (november)
             # don't get those graduating soon
             target_year = 6
 
-        return Member.select().where(Member.year < target_year)
+        if with_github:
+            return (
+                Member.select(Member.year, Member.email, Member.name, Member.discord_id, Github.github)
+                .where(Member.year < target_year)
+                .join(Github, JOIN.LEFT_OUTER, on=(Member.discord_id == Github.discord_id))
+                .order_by(Member.year, Member.name)
+                .objects()
+            )
+
+        return Member.select().where(Member.year < target_year).objects()
 
     def get_github(self, discord_id: int) -> Optional[Github]:
         return Github.get_or_none(Github.discord_id == discord_id)
@@ -143,15 +154,11 @@ class Database:
 
     def insert_project(self, project: Project) -> None:
         with db.atomic():
-            Project.insert(
-                name=project.name,
-                discord_role_id=project.discord_role_id,
-                discord_text_channel_id=project.discord_text_channel_id,
-                discord_voice_channel_id=project.discord_voice_channel_id,
-                webhook_id=project.webhook_id,
-                github_repo=project.github_repo,
-                github_webhook_id=project.github_webhook_id,
-            ).execute()
+            project.save(force_insert=True)
+
+    def delete_project(self, project: Project) -> None:
+        with db.atomic():
+            project.delete_instance()
 
 
 database = Database()

@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-nextcord-unaliased = {extras = ["speed"], version = "*"}
+nextcord = {extras = ["speed"], version = "*"}
 nextcord-ext-ipc = "*"
 uvloop = "*"
 peewee = "*"

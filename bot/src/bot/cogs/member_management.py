@@ -79,15 +79,15 @@ class MemberManagement(Cog):
     ) -> None:
         file = StringIO()
         writer = csv.writer(file)
-        writer.writerow(["Email", "Name", "Discord ID"])
+        writer.writerow(["year", "email", "name", "discord-id", "github"])
 
         if not all_members:
-            members = database.get_non_graduated(strict=(not count_graduating))
+            members = database.get_non_graduated(strict=(not count_graduating), with_github=True)
         else:
             members = database.get_members()
 
         for member in members:
-            writer.writerow([member.email, member.name, member.discord_id])
+            writer.writerow((member.year, member.email, member.name, member.discord_id, member.github))
 
         file.seek(0)
 

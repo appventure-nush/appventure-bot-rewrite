@@ -1,4 +1,4 @@
-FROM python:3.10-slim AS base
+FROM python:3.10-alpine AS base
 
 # Setup env
 ENV LANG C.UTF-8
@@ -11,12 +11,13 @@ FROM base AS python-deps
 
 # Install pipenv and compilation dependencies
 RUN pip install pipenv
-RUN apt update && apt install -y --no-install-recommends gcc g++
+RUN apk add --no-cache --virtual build-deps g++
 
 # Install python dependencies in /.venv
 COPY Pipfile .
 COPY Pipfile.lock .
 RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
+RUN apk del build-deps
 
 
 FROM base AS runtime
@@ -24,11 +25,6 @@ FROM base AS runtime
 # Copy virtual env from python-deps stage
 COPY --from=python-deps /.venv /.venv
 ENV PATH="/.venv/bin:$PATH"
-
-# Create and switch to a new user
-RUN useradd --create-home appuser
-WORKDIR /home/appuser
-USER appuser
 
 # Install application into container
 COPY . .

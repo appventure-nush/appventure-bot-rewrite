@@ -289,8 +289,7 @@ class MSAuth(Cog, name="MSAuth"):
             database.get_member_by_discord_id(member.id)
             or len({self.cache.alumni_role, self.cache.guest_role}.intersection(member.roles)) > 0
         ):
-            # return await send_error(interaction, "You are already verified!", ephemeral=True)
-            pass
+            return await send_error(interaction, "You are already verified!", ephemeral=True)
 
         message = self.get_verify_message(interaction.user.id)
 

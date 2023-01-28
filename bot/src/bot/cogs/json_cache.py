@@ -27,7 +27,7 @@ class JSONCache(Cog):
             _do_before_save = do_before_save
 
         try:
-            with open(f"storage/{cache_name}.json", "rb") as f:
+            with open(f"/storage/{cache_name}.json", "rb") as f:
                 data = f.read()
         except FileNotFoundError:
             data = b"{}"
@@ -47,7 +47,7 @@ class JSONCache(Cog):
         for cache_name, (call_fn, cache) in self.json_caches.items():
             call_fn(cache)
 
-            with open(f"storage/{cache_name}.json", "wb") as f:
+            with open(f"/storage/{cache_name}.json", "wb") as f:
                 f.write(orjson.dumps(cache))
 
             logger.info(f"Saved {len(cache)} records in {cache_name}.json")
