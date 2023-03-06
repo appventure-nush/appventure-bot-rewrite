@@ -132,7 +132,7 @@ class GithubAuth(Cog, name="GithubAuth"):
     def prune_auth_flows(self, github_auth_flows: MutableMapping[str, Tuple[int, int]]) -> None:
         current_time = time.time()
         current_auth_flows = github_auth_flows
-        for key, auth_flow_data in current_auth_flows.items():
+        for key, auth_flow_data in list(current_auth_flows.items()):
             if current_time - auth_flow_data[0] >= 86400:
                 del github_auth_flows[key]
 

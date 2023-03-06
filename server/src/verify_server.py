@@ -15,7 +15,10 @@ async def ms_auth_result():
     if request.method == "GET":
         return "Hello! This is for the AppVenture bot.", 405
 
-    return await ipc_client.request(endpoint="on_ms_auth_response", response=dict(await request.form))
+    resp = await ipc_client.request(endpoint="on_ms_auth_response", response=dict(await request.form))
+    if isinstance(resp, list):
+        resp = tuple(resp)
+    return resp
 
 
 @app.route("/ms_auth", methods=["GET"])
@@ -34,7 +37,10 @@ async def redirect_to_ms_auth():
 
 @app.route("/github", methods=["GET"])
 async def do_github_auth():
-    return await ipc_client.request(endpoint="on_gh_auth_response", response=dict(request.args))
+    resp = await ipc_client.request(endpoint="on_gh_auth_response", response=dict(request.args))
+    if isinstance(resp, list):
+        resp = tuple(resp)
+    return resp
 
 
 __all__ = ["app"]

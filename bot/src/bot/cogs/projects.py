@@ -38,8 +38,6 @@ class Projects(Cog):
         self.org = self.ci.get_organization("appventure-nush")
         self.github_auth = github_auth
 
-        # self.projects: MutableMapping[str, Project] = {}
-
     @is_exco()
     async def project(self, _: Interaction) -> None:
         pass
@@ -85,7 +83,7 @@ class Projects(Cog):
 
         if with_github:
             # make github repo and attach webhook
-            repo = self.org.create_repo(project_name)
+            repo = self.org.create_repo(project_name, private=True)
 
             discord_webhook = await project_text_channel.create_webhook(
                 name=f"GitHub Updates (appventure-nush/{project_name})"
@@ -151,8 +149,6 @@ class Projects(Cog):
     async def import_(
         self,
         interaction: Interaction,
-        *,
-        category: CategoryChannel = SlashOption(description="Category to import from", required=True),
     ) -> None:
         guild = self.cache.guild
         imported_projects: MutableSequence[Project] = []
@@ -170,7 +166,9 @@ class Projects(Cog):
 
         print(github_hooks_map, flush=True)
 
-        for channel in category.channels:
+        channels = self.cache.guild.channels
+
+        for channel in self.cache.guild.channels:
             if not isinstance(channel, TextChannel):
                 continue
 
@@ -179,7 +177,7 @@ class Projects(Cog):
                 continue
 
             # check for voice channel
-            voice_channel = next((c for c in category.channels if c.name == f"{project_name}-voice"), None)
+            voice_channel = next((c for c in channels if c.name == f"{project_name}-voice"), None)
             if not voice_channel:
                 continue
 
