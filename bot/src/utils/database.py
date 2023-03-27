@@ -56,7 +56,7 @@ class Project(BaseModel):
     name = CharField(100, primary_key=True)
     discord_role_id = BigIntegerField()
     discord_text_channel_id = BigIntegerField()
-    discord_voice_channel_id = BigIntegerField()
+    discord_voice_channel_id = BigIntegerField(null=True)
     webhook_id = BigIntegerField(null=True)
     github_repo = CharField(100, null=True)
     github_webhook_id = BigIntegerField(null=True)
@@ -67,6 +67,7 @@ class Database:
 
     def __init__(self) -> None:
         db.connect()
+        db.create_tables([Member, Github, Project])
 
     def create_members(
         self, emails: Collection[str], names: Collection[str], update_existing: bool
@@ -155,6 +156,10 @@ class Database:
     def insert_project(self, project: Project) -> None:
         with db.atomic():
             project.save(force_insert=True)
+
+    def update_project(self, project: Project) -> None:
+        with db.atomic():
+            project.save()
 
     def delete_project(self, project: Project) -> None:
         with db.atomic():

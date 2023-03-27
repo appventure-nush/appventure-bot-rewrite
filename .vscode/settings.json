@@ -2,6 +2,7 @@
     "python.analysis.typeCheckingMode": "basic",
     "cSpell.words": [
         "appventure",
+        "autoimport",
         "dotenv",
         "exco",
         "fastapi",

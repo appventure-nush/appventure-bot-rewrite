@@ -52,7 +52,12 @@ class Projects(Cog):
         with_github: bool = SlashOption(
             description="Whether to also create a GitHub repository", default=True, required=True
         ),
+        with_voice: bool = SlashOption(
+            description="Whether to also create a voice channel", default=True, required=True
+        ),
     ) -> None:
+        await interaction.response.defer()
+
         project_name = project_name.lower().replace(" ", "-")
 
         if database.get_project(project_name):
@@ -68,18 +73,21 @@ class Projects(Cog):
             category=category,
             overwrites={guild.default_role: deny_all, project_role: channel_overrides},
         )
-        project_voice_channel = await guild.create_voice_channel(
-            f"{project_role}-voice",
-            category=category,
-            overwrites={guild.default_role: deny_all, project_role: channel_overrides},
-        )
 
         project = Project(
             name=project_name,
             discord_role_id=project_role.id,
             discord_text_channel_id=project_text_channel.id,
-            discord_voice_channel_id=project_voice_channel.id,
         )
+
+        if with_voice:
+            project_voice_channel = await guild.create_voice_channel(
+                f"{project_role}-voice",
+                category=category,
+                overwrites={guild.default_role: deny_all, project_role: channel_overrides},
+            )
+
+            project.discord_voice_channel_id = project_voice_channel.id  # type: ignore
 
         if with_github:
             # make github repo and attach webhook
@@ -101,7 +109,7 @@ class Projects(Cog):
 
             await project_text_channel.send(f"Linked with `{repo.full_name}`!")
 
-            project.github_repo = repo.full_name  # type: ignore
+            project.github_repo = repo.name  # type: ignore
             project.webhook_id = discord_webhook.id  # type: ignore
             project.github_webhook_id = github_webhook.id  # type: ignore
 
@@ -115,12 +123,19 @@ class Projects(Cog):
         interaction: Interaction,
         *,
         project_name: str = SlashOption(description="Project name", required=True),
+        internal_only: bool = SlashOption(description="Whether to only delete in the internal project database", default=False),
     ) -> None:
         project_name = project_name.lower().replace(" ", "-")
 
         project = database.get_project(project_name)
         if not project:
             return await send_error(interaction, "Project does not exist")
+        
+        database.delete_project(project)
+
+        if internal_only:
+            await interaction.send("Project deleted successfully!")
+            return
 
         guild = self.cache.guild
 
@@ -132,21 +147,20 @@ class Projects(Cog):
         if project_text_channel:
             await project_text_channel.delete()
 
-        project_voice_channel = guild.get_channel(project.discord_voice_channel_id)  # type: ignore
-        if project_voice_channel:
-            await project_voice_channel.delete()
+        if project.discord_voice_channel_id:
+            project_voice_channel = guild.get_channel(project.discord_voice_channel_id)  # type: ignore
+            if project_voice_channel:
+                await project_voice_channel.delete()
 
         if project.github_repo and project.github_webhook_id:
             repo = self.org.get_repo(project.github_repo)  # type: ignore
             hook = repo.get_hook(project.github_webhook_id)  # type: ignore
             hook.delete()
 
-        database.delete_project(project)
-
         await interaction.send("Project deleted successfully!")
 
-    @subcommand(project, description="Import projects (note: will take a while)", name="import")
-    async def import_(
+    @subcommand(project, description="Automatically import projects (note: will take a while)", name="autoimport")
+    async def autoimport(
         self,
         interaction: Interaction,
     ) -> None:
@@ -162,7 +176,7 @@ class Projects(Cog):
             for hook in repo.get_hooks():
                 print(hook, flush=True)
                 if hook.config["url"].endswith("/github") and "discord" in hook.config["url"]:
-                    github_hooks_map[hook.config["url"][:-7]] = (repo.full_name, hook)
+                    github_hooks_map[hook.config["url"][:-7]] = (repo.name, hook)
 
         print(github_hooks_map, flush=True)
 
@@ -176,11 +190,6 @@ class Projects(Cog):
             if database.get_project(project_name):
                 continue
 
-            # check for voice channel
-            voice_channel = next((c for c in channels if c.name == f"{project_name}-voice"), None)
-            if not voice_channel:
-                continue
-
             # check for role
             project_role = next((r for r in guild.roles if r.name == project_name), None)
             if not project_role:
@@ -190,8 +199,12 @@ class Projects(Cog):
                 name=project_name,
                 discord_role_id=project_role.id,
                 discord_text_channel_id=channel.id,
-                discord_voice_channel_id=voice_channel.id,
             )
+
+            # check for voice channel
+            voice_channel = next((c for c in channels if c.name == f"{project_name}-voice"), None)
+            if voice_channel:
+                project.discord_voice_channel_id = voice_channel.id  # type: ignore
 
             # check for webhook
             webhooks = await channel.webhooks()
@@ -224,6 +237,105 @@ class Projects(Cog):
         else:
             await interaction.send("No projects found!")
 
+    # TODO: add manual link command
+
+    @subcommand(project, description="Link project to GitHub repo")
+    async def link(
+        self,
+        interaction: Interaction,
+        *,
+        project_name: str = SlashOption(description="Project name", required=True),
+        github_repo: str = SlashOption(description="GitHub repo name (only the part after appventure-nush)", required=True),
+        force: bool = SlashOption(description="Whether to force link even if project already linked", default=False),
+    ) -> None:
+        project_name = project_name.lower().replace(" ", "-")
+
+        project = database.get_project(project_name)
+        if not project:
+            return await send_error(interaction, "Project does not exist")
+
+        if not force and project.github_repo:
+            return await send_error(interaction, "Project already linked to GitHub repo")
+
+        repo = self.org.get_repo(github_repo)
+        if not repo:
+            return await send_error(interaction, "GitHub repo does not exist")
+        
+        project_text_channel = self.cache.guild.get_channel(project.discord_text_channel_id)  # type: ignore
+        if not project_text_channel:
+            return await send_error(interaction, "Project text channel does not exist, was it manually deleted?")
+        
+        if not isinstance(project_text_channel, TextChannel):
+            return await send_error(interaction, "Project text channel is not a text channel, was it manually changed?")
+        
+        discord_webhook = await project_text_channel.create_webhook(
+            name=f"GitHub Updates (appventure-nush/{project_name})"
+        )
+        webhook_url = f"{discord_webhook.url}/github"
+        github_webhook = repo.create_hook(
+            "web",
+            {
+                "url": webhook_url,
+                "content_type": "json",
+            },
+            events=["push", "pull_request", "pull_request_review", "pull_request_review_comment"],
+            active=True,
+        )
+
+        await project_text_channel.send(f"Linked with `{repo.full_name}`!")
+
+        project.github_repo = repo.name  # type: ignore
+        project.webhook_id = discord_webhook.id  # type: ignore
+        project.github_webhook_id = github_webhook.id  # type: ignore
+
+        database.update_project(project)
+
+        await interaction.send("Project linked successfully!")
+
+    @subcommand(project, description="Share a GitHub repo with a user")
+    async def share(
+        self,
+        interaction: Interaction,
+        *,
+        project_name: str = SlashOption(description="Project name", required=True),
+    ) -> None:
+        project_name = project_name.lower().replace(" ", "-")
+
+        await interaction.response.defer()
+
+        project = database.get_project(project_name)
+
+        if not project:
+            return await send_error(interaction, "Project does not exist")
+        
+        if not project.github_repo:
+            return await send_error(interaction, "Project not linked to GitHub repo")
+        
+        repo = self.org.get_repo(project.github_repo) # type: ignore
+        if not repo:
+            return await send_error(interaction, "GitHub repo link broken; please re-link project")
+        
+        role = self.cache.guild.get_role(project.discord_role_id) # type: ignore
+        if not role:
+            return await send_error(interaction, "Project role not found")
+        
+        members = role.members
+        github_names = []
+        
+        for member in members:
+            github_name = database.get_github(member.id) # type: ignore
+            github_names.append(github_name)
+
+        for contributor in repo.get_contributors():
+            if contributor.login in github_names:
+                github_names.remove(contributor.login)
+
+        # add everyone remaining to repo
+        for github_name in github_names:
+            repo.add_to_collaborators(github_name, permission="maintain")
+
+        await interaction.send(f"Project shared to ```{', '.join(github_names)}```")      
+
     @subcommand(project, description="Export all projects and member assignments")
     async def export(self, interaction: Interaction) -> None:
         guild = self.cache.guild
@@ -238,7 +350,9 @@ class Projects(Cog):
         members_writer = csv.writer(members_file)
         members_writer.writerow(["member", "project", "in-github"])
 
-        for project in database.get_projects():
+        projects = database.get_projects()
+
+        for project in projects:
             project_role = guild.get_role(project.discord_role_id)  # type: ignore
             if not project_role:
                 raise ValueError(f"Project role {project.discord_role_id} not found")
@@ -259,7 +373,7 @@ class Projects(Cog):
         projects_file.seek(0)
         members_file.seek(0)
 
-        await interaction.send(content=f"Here you go! ({len(self.projects)} projects)", files=[File(fp=projects_file, filename="projects.csv"), File(fp=members_file, filename="project_members.csv")])  # type: ignore
+        await interaction.send(content=f"Here you go! ({len(projects)} projects)", files=[File(fp=projects_file, filename="projects.csv"), File(fp=members_file, filename="project_members.csv")])  # type: ignore
 
         projects_file.close()
         members_file.close()
