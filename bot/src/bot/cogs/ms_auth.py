@@ -292,8 +292,7 @@ class MSAuth(Cog, name="MSAuth"):
             database.get_member_by_discord_id(member.id)
             or len({self.cache.alumni_role, self.cache.guest_role}.intersection(member.roles)) > 0
         ):
-            # return await send_error(interaction, "You are already verified!", ephemeral=True)
-            pass
+            return await send_error(interaction, "You are already verified!", ephemeral=True)
 
         message = self.get_verify_message(interaction.user.id)
 
@@ -321,6 +320,7 @@ class MSAuth(Cog, name="MSAuth"):
     def prune_auth_flows(self, auth_flows: MutableMapping[str, Tuple[int, int, Any]]) -> None:
         current_time = time.time()
         current_auth_flows: MutableMapping[str, Tuple[int, int, Any]] = auth_flows
+        # wrap in list to create a copy of items (we modify the dict in the loop)
         for key, auth_flow_data in list(current_auth_flows.items()):
             if current_time - auth_flow_data[0] >= 86400:
                 del auth_flows[key]
