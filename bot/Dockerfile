@@ -17,7 +17,6 @@ RUN apk add --no-cache --virtual build-deps cargo
 COPY Pipfile .
 COPY Pipfile.lock .
 RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
-RUN apk del build-deps
 
 
 FROM base AS runtime
