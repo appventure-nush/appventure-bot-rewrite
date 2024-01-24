@@ -1,7 +1,7 @@
 import logging
 
 import uvloop
-from bot.cogs import (
+from cogs import (
     Cache,
     GithubAuth,
     JSONCache,

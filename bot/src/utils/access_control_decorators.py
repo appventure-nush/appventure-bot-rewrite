@@ -1,6 +1,6 @@
 from typing import Callable
 
-from bot.cogs.cache import Cache
+from cogs.cache import Cache
 from config import config
 from nextcord import (
     ApplicationCheckFailure,
