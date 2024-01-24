@@ -112,7 +112,7 @@ class GithubAuth(Cog, name="GithubAuth"):
         # get their name
         github_user = Github(response.json()["access_token"]).get_user()
         github_username = github_user.login
-        github_display_name = github_user.name
+        github_display_name = github_user.name or github_username
 
         appventure_member = self.cache.guild.get_member(member_id)
         if not appventure_member:

@@ -2,7 +2,7 @@ import csv
 from io import StringIO
 
 from config import config
-from nextcord import Attachment, File, Interaction, SlashOption
+from nextcord import Attachment, File, Interaction, Member, SlashOption
 from nextcord.ext.commands import Bot, Cog
 from utils.access_control_decorators import is_exco, subcommand
 from utils.database import database
@@ -117,6 +117,48 @@ class MemberManagement(Cog):
             updated += 1
 
         await interaction.send(content=f"Done! {updated} people graduated.")
+
+    @subcommand(members, description="Modify a member's year (for retained people)", name="modify-year")
+    async def modify_year(
+        self,
+        interaction: Interaction,
+        *,
+        member: Member = SlashOption(description="Member to modify", required=True),
+        year: int = SlashOption(description="Their current school year", required=True),
+    ):
+        # get member in db
+        member_db = database.get_member_by_discord_id(member.id)
+        if not member_db:
+            return await send_error(interaction, "Member not found in database")
+
+        if member_db.year == year:
+            return await send_error(interaction, "Member is already in that year")
+
+        member_db.year_offset = member_db.year_offset + member_db.year - year
+
+        database.update_member(member_db)
+
+        await interaction.send(content=f"Done! {member.mention} is now in year {year}")
+
+    @subcommand(members, description="Change a member to guest")
+    async def leave(
+        self,
+        interaction: Interaction,
+        *,
+        member: Member = SlashOption(description="Leaving member", required=True),
+    ):
+        # get member in db
+        member_db = database.get_member_by_discord_id(member.id)
+        if not member_db:
+            return await send_error(interaction, "Member not found in database")
+
+        # give guest role, remove member role
+        await member.remove_roles(self.cache.member_role)
+        await member.add_roles(self.cache.guest_role)
+
+        database.delete_member(member_db)
+
+        await interaction.send(content=f"Done! {member.mention} is now a guest")
 
 
 __all__ = ["MemberManagement"]

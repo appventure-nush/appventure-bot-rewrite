@@ -1,16 +1,18 @@
 import logging
 from datetime import date
-from typing import Any, Collection, Literal, Mapping, Optional, Tuple, Union
+from typing import Any, Collection, Literal, Optional, Tuple, Union
 
 from peewee import (
     JOIN,
     BigIntegerField,
     Cast,
     CharField,
+    IntegerField,
     Model,
     PeeweeException,
     PostgresqlDatabase,
     fn,
+    SQL
 )
 from playhouse.hybrid import hybrid_property
 
@@ -29,12 +31,13 @@ class Member(BaseModel):
     email = CharField(23, primary_key=True)
     name = CharField(100)
     discord_id = BigIntegerField(null=True, unique=True)
+    year_offset = IntegerField(default=0, constraints=[SQL("DEFAULT 0")])
 
     @hybrid_property
     def year(self):  # type: ignore
         join_year = int(self.email[1:3])
         join_level = int(self.email[3])
-        return (date.today().year - join_year) % 100 + join_level
+        return (date.today().year - join_year) % 100 + join_level - self.year_offset
 
     @year.expression
     def year(cls):
@@ -43,7 +46,7 @@ class Member(BaseModel):
         join_year = Cast(fn.SUBSTR(cls.email, 2, 2), "INT")
         join_level = Cast(fn.SUBSTR(cls.email, 4, 1), "INT")
         curr_year = Cast(fn.DATE_PART("year", fn.NOW()), "INT")
-        year = fn.MOD(curr_year - join_year, 100) + join_level
+        year = fn.MOD(curr_year - join_year, 100) + join_level - cls.year_offset
         return year
 
 
@@ -101,7 +104,7 @@ class Database:
 
     def get_members(self) -> Collection[Any]:
         return (
-            Member.select(Member.year, Member.email, Member.name, Member.discord_id, Github.github)
+            Member.select(Member, Github.github)
             .join(Github, JOIN.LEFT_OUTER, on=(Member.discord_id == Github.discord_id))
             .order_by(Member.year, Member.name)
             .objects()
@@ -123,7 +126,6 @@ class Database:
             # consider those graduating soon
             target_year = 6
 
-        target_year = 4
         return Member.select().where(Member.year >= target_year)
 
     def get_non_graduated(self, *, strict: bool = False, with_github: bool = False) -> Collection[Any]:
@@ -135,7 +137,7 @@ class Database:
 
         if with_github:
             return (
-                Member.select(Member.year, Member.email, Member.name, Member.discord_id, Github.github)
+                Member.select(Member, Github.github)
                 .where(Member.year < target_year)
                 .join(Github, JOIN.LEFT_OUTER, on=(Member.discord_id == Github.discord_id))
                 .order_by(Member.year, Member.name)
@@ -164,6 +166,14 @@ class Database:
     def delete_project(self, project: Project) -> None:
         with db.atomic():
             project.delete_instance()
+
+    def update_member(self, member: Member) -> None:
+        with db.atomic():
+            member.save()
+
+    def delete_member(self, member: Member) -> None:
+        with db.atomic():
+            member.delete_instance()
 
 
 database = Database()

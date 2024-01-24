@@ -149,7 +149,10 @@ class MSAuth(Cog, name="MSAuth"):
         state = uuid.uuid4().hex
 
         auth_flow = self.application.initiate_auth_code_flow(
-            scopes=["User.Read"], redirect_uri=f"{config.ms_auth_redirect_domain}", state=state, response_mode="form_post"
+            scopes=["User.Read"],
+            redirect_uri=f"{config.ms_auth_redirect_domain}",
+            state=state,
+            response_mode="form_post",
         )
 
         self.auth_flows[state] = (int(time.time()), member_id, auth_flow)

@@ -1,18 +1,19 @@
 import csv
 from io import StringIO
-from typing import MutableMapping, MutableSequence, Tuple
+from typing import Optional
 
 from config import config
 from github import Github
-from github.Hook import Hook
 from nextcord import (
     CategoryChannel,
     File,
     Interaction,
     PermissionOverwrite,
     Permissions,
+    Role,
     SlashOption,
     TextChannel,
+    VoiceChannel,
 )
 from nextcord.ext.commands import Bot, Cog
 from utils.access_control_decorators import is_exco, subcommand
@@ -24,7 +25,6 @@ from .github_auth import GithubAuth
 from .ui_helper import UIHelper
 
 
-# TODO: Test this stuff
 class Projects(Cog):
     __slots__ = "bot", "cache", "ui_helper", "ci", "org", "github_auth"
 
@@ -123,14 +123,16 @@ class Projects(Cog):
         interaction: Interaction,
         *,
         project_name: str = SlashOption(description="Project name", required=True),
-        internal_only: bool = SlashOption(description="Whether to only delete in the internal project database", default=False),
+        internal_only: bool = SlashOption(
+            description="Whether to only delete in the internal project database", default=False
+        ),
     ) -> None:
         project_name = project_name.lower().replace(" ", "-")
 
         project = database.get_project(project_name)
         if not project:
             return await send_error(interaction, "Project does not exist")
-        
+
         database.delete_project(project)
 
         if internal_only:
@@ -159,93 +161,83 @@ class Projects(Cog):
 
         await interaction.send("Project deleted successfully!")
 
-    @subcommand(project, description="Automatically import projects (note: will take a while)", name="autoimport")
-    async def autoimport(
+    @subcommand(project, description="Link existing project", name="import")
+    async def _import(
         self,
         interaction: Interaction,
-    ) -> None:
-        guild = self.cache.guild
-        imported_projects: MutableSequence[Project] = []
-
+        *,
+        project_name: str = SlashOption(description="Project name", required=True),
+        project_role: Optional[Role] = SlashOption(description="Project role (default: <project name>)"),
+        project_text_channel: Optional[TextChannel] = SlashOption(
+            description="Project text channel (default: <project name>)"
+        ),
+        project_voice_channel: Optional[VoiceChannel] = SlashOption(
+            description="Project voice channel (default: <project name>-voice)"
+        ),
+    ):
         await interaction.response.defer()
 
-        github_hooks_map: MutableMapping[str, Tuple[str, Hook]] = {}
+        project_name = project_name.lower().replace(" ", "-")
 
-        for repo in self.org.get_repos():
-            print(repo, flush=True)
-            for hook in repo.get_hooks():
-                print(hook, flush=True)
-                if hook.config["url"].endswith("/github") and "discord" in hook.config["url"]:
-                    github_hooks_map[hook.config["url"][:-7]] = (repo.name, hook)
+        project = database.get_project(project_name)
+        if project:
+            return await send_error(interaction, "Project already exists")
 
-        print(github_hooks_map, flush=True)
-
-        channels = self.cache.guild.channels
-
-        for channel in self.cache.guild.channels:
-            if not isinstance(channel, TextChannel):
-                continue
-
-            project_name = channel.name
-            if database.get_project(project_name):
-                continue
-
-            # check for role
-            project_role = next((r for r in guild.roles if r.name == project_name), None)
-            if not project_role:
-                continue
-
-            project = Project(
-                name=project_name,
-                discord_role_id=project_role.id,
-                discord_text_channel_id=channel.id,
-            )
-
-            # check for voice channel
-            voice_channel = next((c for c in channels if c.name == f"{project_name}-voice"), None)
-            if voice_channel:
-                project.discord_voice_channel_id = voice_channel.id  # type: ignore
-
-            # check for webhook
-            webhooks = await channel.webhooks()
-            for webhook in webhooks:
-                # check which repo has this link
-                repo_name, hook = github_hooks_map.get(webhook.url, (None, None))
-                if repo_name and hook:
-                    project.github_repo = repo_name  # type: ignore
-                    project.webhook_id = webhook.id  # type: ignore
-                    project.github_webhook_id = hook.id  # type: ignore
+        guild = self.cache.guild
+        _project_role = project_role
+        if not _project_role:
+            for role in guild.roles:
+                if role.name == project_name:
+                    _project_role = role
                     break
 
-            database.insert_project(project)
-            imported_projects.append(project)
+        if not _project_role:
+            return await send_error(interaction, "Project role does not exist")
 
-        if imported_projects:
-            # write results to csv
-            file = StringIO()
-            writer = csv.writer(file)
-            writer.writerow(["project-name", "github-name"])
+        _project_text_channel = project_text_channel
+        if not _project_text_channel:
+            for channel in guild.text_channels:
+                if channel.name == project_name and isinstance(channel, TextChannel):
+                    _project_text_channel = channel
+                    break
 
-            for project in imported_projects:
-                writer.writerow([project.name, project.github_repo])
+        if not _project_text_channel:
+            return await send_error(
+                interaction, "Project text channel does not exist, or the channel is not a text channel"
+            )
 
-            file.seek(0)
+        _project_voice_channel = project_voice_channel
+        if not _project_voice_channel:
+            for channel in guild.voice_channels:
+                if channel.name == f"{project_name}-voice" and isinstance(channel, VoiceChannel):
+                    _project_voice_channel = channel
+                    break
 
-            await interaction.send(content=f"Imported {len(imported_projects)} projects!", file=File(fp=file, filename="projects.csv"))  # type: ignore
+        if not _project_voice_channel:
+            return await send_error(
+                interaction, "Project voice channel does not exist, or the channel is not a voice channel"
+            )
 
-            file.close()
-        else:
-            await interaction.send("No projects found!")
+        project = Project(
+            name=project_name,
+            discord_role_id=_project_role.id,
+            discord_text_channel_id=_project_text_channel.id,
+            discord_voice_channel_id=_project_voice_channel.id,
+        )
 
-    # TODO: add manual link command
+        database.insert_project(project)
 
-    @subcommand(project, description="Link project to GitHub repo")
+        await interaction.send("Project linked successfully!")
+
+    @subcommand(project, description="Link project to GitHub repo", name="link")
     async def link(
         self,
         interaction: Interaction,
         *,
         project_name: str = SlashOption(description="Project name", required=True),
-        github_repo: str = SlashOption(description="GitHub repo name (only the part after appventure-nush)", required=True),
+        github_repo: str = SlashOption(
+            description="GitHub repo name (only the part after appventure-nush)", required=True
+        ),
         force: bool = SlashOption(description="Whether to force link even if project already linked", default=False),
     ) -> None:
         project_name = project_name.lower().replace(" ", "-")
@@ -260,14 +252,24 @@ class Projects(Cog):
         repo = self.org.get_repo(github_repo)
         if not repo:
             return await send_error(interaction, "GitHub repo does not exist")
-        
+
         project_text_channel = self.cache.guild.get_channel(project.discord_text_channel_id)  # type: ignore
         if not project_text_channel:
             return await send_error(interaction, "Project text channel does not exist, was it manually deleted?")
-        
+
         if not isinstance(project_text_channel, TextChannel):
             return await send_error(interaction, "Project text channel is not a text channel, was it manually changed?")
-        
+
+        if force and project.github_repo:
+            # delete old webhooks
+            repo = self.org.get_repo(project.github_repo)  # type: ignore
+            hook = repo.get_hook(project.github_webhook_id)  # type: ignore
+            hook.delete()
+            for webhook in await project_text_channel.webhooks():
+                if webhook.id == project.webhook_id:
+                    await webhook.delete()
+                    break
+
         discord_webhook = await project_text_channel.create_webhook(
             name=f"GitHub Updates (appventure-nush/{project_name})"
         )
@@ -307,23 +309,23 @@ class Projects(Cog):
 
         if not project:
             return await send_error(interaction, "Project does not exist")
-        
+
         if not project.github_repo:
             return await send_error(interaction, "Project not linked to GitHub repo")
-        
-        repo = self.org.get_repo(project.github_repo) # type: ignore
+
+        repo = self.org.get_repo(project.github_repo)  # type: ignore
         if not repo:
             return await send_error(interaction, "GitHub repo link broken; please re-link project")
-        
-        role = self.cache.guild.get_role(project.discord_role_id) # type: ignore
+
+        role = self.cache.guild.get_role(project.discord_role_id)  # type: ignore
         if not role:
             return await send_error(interaction, "Project role not found")
-        
+
         members = role.members
         github_names = []
-        
+
         for member in members:
-            github_name = database.get_github(member.id) # type: ignore
+            github_name = database.get_github(member.id)  # type: ignore
             github_names.append(github_name)
 
         for contributor in repo.get_contributors():
@@ -334,7 +336,7 @@ class Projects(Cog):
         for github_name in github_names:
             repo.add_to_collaborators(github_name, permission="maintain")
 
-        await interaction.send(f"Project shared to ```{', '.join(github_names)}```")      
+        await interaction.send(f"Project shared to ```{', '.join(github_names)}```")
 
     @subcommand(project, description="Export all projects and member assignments")
     async def export(self, interaction: Interaction) -> None:
@@ -377,6 +379,43 @@ class Projects(Cog):
 
         projects_file.close()
         members_file.close()
+
+    @subcommand(project, description="Archive a project")
+    async def archive(
+        self,
+        interaction: Interaction,
+        *,
+        project_name: str = SlashOption(description="Project name", required=True),
+        archive_category: CategoryChannel = SlashOption(description="Channel to move project to", required=True),
+    ) -> None:
+        project_name = project_name.lower().replace(" ", "-")
+
+        project = database.get_project(project_name)
+        if not project:
+            return await send_error(interaction, "Project does not exist")
+
+        guild = self.cache.guild
+        text_channel = guild.get_channel(project.discord_text_channel_id)  # type: ignore
+        if not text_channel:
+            return await send_error(interaction, "Project text channel does not exist, was it manually deleted?")
+        if not isinstance(text_channel, TextChannel):
+            return await send_error(interaction, "Project text channel is not a text channel, was it manually changed?")
+
+        voice_channel = guild.get_channel(project.discord_voice_channel_id)  # type: ignore
+        if not voice_channel:
+            return await send_error(interaction, "Project text channel does not exist, was it manually deleted?")
+        if not isinstance(voice_channel, VoiceChannel):
+            return await send_error(
+                interaction, "Project voice channel is not a voice channel, was it manually changed?"
+            )
+
+        await text_channel.edit(category=archive_category)
+        await voice_channel.delete()
+
+        # delete from the internal db
+        database.delete_project(project)
+
+        await interaction.send("Project archived successfully!")
 
 
 __all__ = ["Projects"]
