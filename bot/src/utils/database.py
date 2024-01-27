@@ -18,7 +18,7 @@ from playhouse.hybrid import hybrid_property
 
 db = PostgresqlDatabase(
     database="postgres", host="db", port=5432, user="postgres", password="postgres"
-)  # TODO: modify this when deploying
+)
 logger = logging.getLogger(__name__)
 
 
