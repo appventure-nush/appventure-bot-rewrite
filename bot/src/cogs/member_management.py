@@ -118,7 +118,7 @@ class MemberManagement(Cog):
 
         await interaction.send(content=f"Done! {updated} people graduated.")
 
-    @subcommand(members, description="Modify a member's year (for retained people)", name="modify-year")
+    @subcommand(members, description="Modify a member's year (for retained people)")
     async def modify_year(
         self,
         interaction: Interaction,

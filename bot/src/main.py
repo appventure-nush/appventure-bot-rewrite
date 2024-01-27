@@ -10,6 +10,7 @@ from cogs import (
     Nick,
     Projects,
     UIHelper,
+    Help
 )
 from config import config
 from nextcord import Intents
@@ -42,6 +43,7 @@ def main() -> None:
     bot.add_cog(MemberManagement(bot, cache))
     bot.add_cog(Nick(bot, cache, ui_helper))
     bot.add_cog(Projects(bot, cache, ui_helper, github_auth))
+    bot.add_cog(Help(bot, cache))
 
     ipc_server.start()
 

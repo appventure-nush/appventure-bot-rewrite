@@ -294,7 +294,7 @@ class Projects(Cog):
 
         await interaction.send("Project linked successfully!")
 
-    @subcommand(project, description="Share a GitHub repo with a user")
+    @subcommand(project, description="Share GitHub repo with project members")
     async def share(
         self,
         interaction: Interaction,
@@ -323,10 +323,14 @@ class Projects(Cog):
 
         members = role.members
         github_names = []
+        no_github = []
 
         for member in members:
             github_name = database.get_github(member.id)  # type: ignore
-            github_names.append(github_name)
+            if (not github_name):
+                no_github.append(member.display_name)
+                continue
+            github_names.append(github_name.github)
 
         for contributor in repo.get_contributors():
             if contributor.login in github_names:
@@ -336,7 +340,7 @@ class Projects(Cog):
         for github_name in github_names:
             repo.add_to_collaborators(github_name, permission="maintain")
 
-        await interaction.send(f"Project shared to ```{', '.join(github_names)}```")
+        await interaction.send(f"Project shared to ```{', '.join(github_names)}``` (no GitHub linked: ```{', '.join(no_github)}```)")
 
     @subcommand(project, description="Export all projects and member assignments")
     async def export(self, interaction: Interaction) -> None:
