@@ -4,7 +4,7 @@ from typing import Optional
 import logging
 
 from config import config
-from github import Github
+from github import Github, UnknownObjectException
 from nextcord import (
     CategoryChannel,
     File,
@@ -157,9 +157,12 @@ class Projects(Cog):
                 await project_voice_channel.delete()
 
         if project.github_repo and project.github_webhook_id:
-            repo = self.org.get_repo(project.github_repo)  # type: ignore
-            hook = repo.get_hook(project.github_webhook_id)  # type: ignore
-            hook.delete()
+            try:
+                repo = self.org.get_repo(project.github_repo)  # type: ignore
+                hook = repo.get_hook(project.github_webhook_id)  # type: ignore
+                hook.delete()
+            except UnknownObjectException:
+                logging.warn(f"GitHub repo {project.github_repo} not found")
 
         await interaction.send("Project deleted successfully!")
 
@@ -243,7 +246,7 @@ class Projects(Cog):
         force: bool = SlashOption(description="Whether to force link even if project already linked", default=False),
     ) -> None:
         await interaction.response.defer()
-        
+
         project_name = project_name.lower().replace(" ", "-")
 
         project = database.get_project(project_name)
@@ -253,8 +256,9 @@ class Projects(Cog):
         if not force and project.github_repo:
             return await send_error(interaction, "Project already linked to GitHub repo")
 
-        repo = self.org.get_repo(github_repo)
-        if not repo:
+        try:
+            repo = self.org.get_repo(github_repo)
+        except UnknownObjectException:
             return await send_error(interaction, "GitHub repo does not exist")
 
         project_text_channel = self.cache.guild.get_channel(project.discord_text_channel_id)  # type: ignore
@@ -266,9 +270,13 @@ class Projects(Cog):
 
         if force and project.github_repo:
             # delete old webhooks
-            repo = self.org.get_repo(project.github_repo)  # type: ignore
-            hook = repo.get_hook(project.github_webhook_id)  # type: ignore
-            hook.delete()
+            try:
+                repo = self.org.get_repo(project.github_repo)  # type: ignore
+                hook = repo.get_hook(project.github_webhook_id)  # type: ignore
+                hook.delete()
+            except UnknownObjectException:
+                logging.warn(f"Old GitHub repo {project.github_repo} not found")
+
             for webhook in await project_text_channel.webhooks():
                 if webhook.id == project.webhook_id:
                     await webhook.delete()
@@ -317,8 +325,9 @@ class Projects(Cog):
         if not project.github_repo:
             return await send_error(interaction, "Project not linked to GitHub repo")
 
-        repo = self.org.get_repo(project.github_repo)  # type: ignore
-        if not repo:
+        try:
+            repo = self.org.get_repo(project.github_repo)  # type: ignore
+        except UnknownObjectException:
             return await send_error(interaction, "GitHub repo link broken; please re-link project")
 
         role = self.cache.guild.get_role(project.discord_role_id)  # type: ignore
@@ -369,13 +378,14 @@ class Projects(Cog):
                     # check if member in github
                     in_github = False
                     if project.github_repo:
-                        if not (repo := self.org.get_repo(project.github_repo)):   # type: ignore
-                            logging.warn(f"GitHub repo {repo} not found, cannot get members in GitHub")
-                        else:
+                        try:
+                            repo = self.org.get_repo(project.github_repo)  # type: ignore
                             contributor_names = [
                                 contributor.login for contributor in repo.get_contributors()
                             ]
                             in_github = (await self.github_auth.get_github_name(member.id)) in contributor_names
+                        except UnknownObjectException:   # type: ignore
+                            logging.warn(f"GitHub repo {project.github_repo} not found, cannot get members in GitHub")
 
                     members_writer.writerow([project.name, member.display_name, in_github])
             else:
