@@ -1,6 +1,7 @@
 import csv
 from io import StringIO
 from typing import Optional
+import logging
 
 from config import config
 from github import Github
@@ -24,6 +25,7 @@ from .cache import Cache
 from .github_auth import GithubAuth
 from .ui_helper import UIHelper
 
+logger = logging.getLogger(__name__)
 
 class Projects(Cog):
     __slots__ = "bot", "cache", "ui_helper", "ci", "org", "github_auth"
@@ -360,19 +362,22 @@ class Projects(Cog):
 
         for project in projects:
             project_role = guild.get_role(project.discord_role_id)  # type: ignore
-            if not project_role:
-                raise ValueError(f"Project role {project.discord_role_id} not found")
+            if project_role:
+                for member in project_role.members:
+                    # check if member in github
+                    in_github = False
+                    if project.github_repo:
+                        if not (repo := self.org.get_repo(project.github_repo)):   # type: ignore
+                            logging.warn(f"GitHub repo {repo} not found, cannot get members in GitHub")
+                        else:
+                            contributor_names = [
+                                contributor.login for contributor in repo.get_contributors()
+                            ]
+                            in_github = (await self.github_auth.get_github_name(member.id)) in contributor_names
 
-            for member in project_role.members:
-                # check if member in github
-                in_github = False
-                if project.github_repo:
-                    contributor_names = [
-                        contributor.login for contributor in self.ci.get_repo(project.github_repo).get_contributors()  # type: ignore
-                    ]
-                    in_github = (await self.github_auth.get_github_name(member.id)) in contributor_names
-
-                members_writer.writerow([project.name, member.display_name, in_github])
+                    members_writer.writerow([project.name, member.display_name, in_github])
+            else:
+                logging.warn(f"Project role {project.discord_role_id} not found, cannot list members")
 
             projects_writer.writerow([project.name, project.github_repo])
 
