@@ -356,7 +356,7 @@ class Projects(Cog):
 
         members_file = StringIO()
         members_writer = csv.writer(members_file)
-        members_writer.writerow(["member", "project", "in-github"])
+        members_writer.writerow(["project", "member", "in-github"])
 
         projects = database.get_projects()
 
