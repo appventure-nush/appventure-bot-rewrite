@@ -97,6 +97,8 @@ class MemberManagement(Cog):
 
     @subcommand(members, description="Give alumni role to those graduating")
     async def refresh(self, interaction: Interaction) -> None:
+        await interaction.response.defer()
+
         guild = self.cache.guild
         alumni_role = self.cache.alumni_role
 
