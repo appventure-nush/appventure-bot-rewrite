@@ -232,7 +232,7 @@ class Projects(Cog):
 
         database.insert_project(project)
 
-        await interaction.send("Project linked successfully!")
+        await interaction.send("Project imported successfully!")
 
     @subcommand(project, description="Link project to GitHub repo", name="link")
     async def link(
