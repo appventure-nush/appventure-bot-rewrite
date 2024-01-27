@@ -273,7 +273,7 @@ class Projects(Cog):
                     break
 
         discord_webhook = await project_text_channel.create_webhook(
-            name=f"GitHub Updates (appventure-nush/{project_name})"
+            name=f"GitHub Updates (appventure-nush/{repo.name})"
         )
         webhook_url = f"{discord_webhook.url}/github"
         github_webhook = repo.create_hook(
