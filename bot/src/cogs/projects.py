@@ -242,6 +242,8 @@ class Projects(Cog):
         ),
         force: bool = SlashOption(description="Whether to force link even if project already linked", default=False),
     ) -> None:
+        await interaction.response.defer()
+        
         project_name = project_name.lower().replace(" ", "-")
 
         project = database.get_project(project_name)
