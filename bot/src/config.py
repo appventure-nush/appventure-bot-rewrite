@@ -4,7 +4,6 @@ import os
 class Config:
     __slots__ = (
         "alumni_role",
-        "archive_category_id",
         "discord_token",
         "exco_channel_id",
         "exco_role",
@@ -22,7 +21,6 @@ class Config:
 
     def __init__(self) -> None:
         self.alumni_role = int(os.environ["ALUMNI_ROLE"])
-        self.archive_category_id = int(os.environ["ARCHIVE_CATEGORY_ID"])
         self.discord_token = os.environ["DISCORD_TOKEN"]
         self.exco_channel_id = int(os.environ["EXCO_CHANNEL_ID"])
         self.exco_role = int(os.environ["EXCO_ROLE"])
