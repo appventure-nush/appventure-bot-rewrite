@@ -53,11 +53,13 @@ class UIHelper(Cog):
         self.callbacks[callback_name] = callback
 
     def get_button(self, callback_name: str, callback_args: Collection[Any], **kwargs) -> Button:
-        button_id = uuid.uuid4().hex
+        while (button_id := uuid.uuid4().hex) in self.pending:
+            pass
+        
+        self.pending[button_id] = (callback_name, callback_args)
+        
         kwargs["custom_id"] = button_id
         button = Button(**kwargs)
-
-        self.pending[button_id] = (callback_name, callback_args)
 
         return button
 
