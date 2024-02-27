@@ -146,7 +146,8 @@ class MSAuth(Cog, name="MSAuth"):
         return self.auth_flows.get(state, (0, 0, {}))[2].get("auth_uri")
 
     def get_ms_auth_link(self, member_id: int) -> str:
-        state = uuid.uuid4().hex
+        while (state := uuid.uuid4().hex) in self.auth_flows:
+            pass
 
         auth_flow = self.application.initiate_auth_code_flow(
             scopes=["User.Read"],
