@@ -350,9 +350,9 @@ class Projects(Cog):
         for github in list(github_accounts):
             if github[0].github in contributors:
                 github_accounts.remove(github)
+                continue
 
-        # add everyone remaining to repo
-        for github in github_accounts:
+            # attempt to add to repo
             try:
                 repo.add_to_collaborators(github[0].github, permission="maintain") # type: ignore
             except UnknownObjectException:
