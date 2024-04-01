@@ -360,9 +360,9 @@ class Projects(Cog):
                 invalid_github.append(github[1])
                 database.delete_github(github[0])
 
-        github_names_str = 'no members' if not len(github_accounts) else ', '.join(map(lambda github: f'```{github[0].github}```', github_accounts))
-        no_github_str = '' if not len(no_github) else 'no GitHub linked: ' + ', '.join(map(lambda member: f'```{member}```', no_github))
-        invalid_github_str = '' if not len(invalid_github) else 'invalid GitHub usernames: ' + ', '.join(map(lambda member: f'```{member}```', invalid_github)) + ' - please reverify'
+        github_names_str = 'no members' if not len(github_accounts) else '```' + ', '.join(map(lambda github: str(github[0].github), github_accounts)) + '```'
+        no_github_str = '' if not len(no_github) else 'no GitHub linked: ```' + ', '.join(no_github) + '```'
+        invalid_github_str = '' if not len(invalid_github) else 'invalid GitHub usernames: ```' + ', '.join(invalid_github) + '``` - please reverify'
         error_str = ', '.join(filter(None, [no_github_str, invalid_github_str]))
 
         await interaction.send(f"Project shared to {github_names_str} {f'({error_str})' if error_str else ''}")
