@@ -357,6 +357,7 @@ class Projects(Cog):
                 repo.add_to_collaborators(github[0].github, permission="maintain") # type: ignore
             except UnknownObjectException:
                 # github name is invalid, we dissociate the discord id
+                github_accounts.remove(github)
                 invalid_github.append(github[1])
                 database.delete_github(github[0])
 
