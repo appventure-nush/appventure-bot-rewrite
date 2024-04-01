@@ -175,6 +175,10 @@ class Database:
         with db.atomic():
             member.delete_instance()
 
+    def delete_github(self, github: Github) -> None:
+        with db.atomic():
+            github.delete_instance()
+
 
 database = Database()
 

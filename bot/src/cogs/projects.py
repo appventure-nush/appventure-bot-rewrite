@@ -18,7 +18,7 @@ from nextcord import (
 )
 from nextcord.ext.commands import Bot, Cog
 from utils.access_control_decorators import is_exco, subcommand
-from utils.database import Project, database
+from utils.database import Project, database, Github as GithubDB
 from utils.error import send_error
 
 from .cache import Cache
@@ -335,25 +335,37 @@ class Projects(Cog):
             return await send_error(interaction, "Project role not found")
 
         members = role.members
-        github_names = []
-        no_github = []
+        github_accounts: list[tuple[GithubDB, str]] = []
+        no_github: list[str] = []
+        invalid_github: list[str] = []
 
         for member in members:
-            github_name = database.get_github(member.id)  # type: ignore
-            if (not github_name):
+            github = database.get_github(member.id)  # type: ignore
+            if not github:
                 no_github.append(member.display_name)
                 continue
-            github_names.append(github_name.github)
+            github_accounts.append((github, member.display_name))
 
-        for contributor in repo.get_contributors():
-            if contributor.login in github_names:
-                github_names.remove(contributor.login)
+        contributors = [contributor.login for contributor in repo.get_contributors()]
+        for github in list(github_accounts):
+            if github[0].github in contributors:
+                github_accounts.remove(github)
 
         # add everyone remaining to repo
-        for github_name in github_names:
-            repo.add_to_collaborators(github_name, permission="maintain")
+        for github in github_accounts:
+            try:
+                repo.add_to_collaborators(github[0].github, permission="maintain") # type: ignore
+            except UnknownObjectException:
+                # github name is invalid, we dissociate the discord id
+                invalid_github.append(github[1])
+                database.delete_github(github[0])
 
-        await interaction.send(f"Project shared to ```{', '.join(github_names)}``` (no GitHub linked: ```{', '.join(no_github)}```)")
+        github_names_str = 'no members' if not len(github_accounts) else ', '.join(map(lambda github: f'```{github[0].github}```', github_accounts))
+        no_github_str = '' if not len(no_github) else 'no GitHub linked: ' + ', '.join(map(lambda member: f'```{member}```', no_github))
+        invalid_github_str = '' if not len(invalid_github) else 'invalid GitHub usernames: ' + ', '.join(map(lambda member: f'```{member}```', invalid_github))
+        error_str = ', '.join([no_github_str, invalid_github_str])
+
+        await interaction.send(f"Project shared to {github_names_str} {f'({error_str})' if error_str else ''}")
 
     @subcommand(project, description="Export all projects and member assignments")
     async def export(self, interaction: Interaction) -> None:
