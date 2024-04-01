@@ -63,7 +63,9 @@ class GithubAuth(Cog, name="GithubAuth"):
             return await send_error(interaction, "You have already linked your GitHub account!", ephemeral=True)
 
         # generate auth flow
-        state = uuid.uuid4().hex
+        while (state := uuid.uuid4().hex) in self.github_auth_flows:
+            pass
+        
         github_link = f"https://github.com/login/oauth/authorize?client_id={config.github_client_id}&state={state}"
 
         # add to pending auth flows
