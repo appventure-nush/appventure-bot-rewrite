@@ -1,12 +1,14 @@
 import logging
-from typing import Any, Callable, MutableMapping, Optional, Tuple
+from typing import Any, Callable, MutableMapping, Optional, Tuple, TypeVar
 
 import orjson
 from nextcord.ext import tasks
 from nextcord.ext.commands import Bot, Cog
 
 logger = logging.getLogger(__name__)
-SaveCallback = Callable[[MutableMapping[str, Any]], None]
+
+DataType = TypeVar('DataType')
+SaveCallback = Callable[[MutableMapping[str, DataType]], None]
 
 
 class JSONCache(Cog):
@@ -19,8 +21,8 @@ class JSONCache(Cog):
         self.json_caches: MutableMapping[str, Tuple[SaveCallback, MutableMapping[str, Any]]] = {}
 
     def register_cache(
-        self, cache_name: str, do_before_save: Optional[SaveCallback] = None
-    ) -> MutableMapping[str, Any]:
+        self, cache_name: str, do_before_save: Optional[SaveCallback[DataType]] = None
+    ) -> MutableMapping[str, DataType]:
         if not do_before_save:
             _do_before_save: SaveCallback = lambda _: None
         else:
@@ -32,7 +34,7 @@ class JSONCache(Cog):
         except FileNotFoundError:
             data = b"{}"
 
-        cache: MutableMapping[str, Any] = orjson.loads(data)
+        cache: MutableMapping[str, DataType] = orjson.loads(data)
 
         logger.info(f"Loaded {len(cache)} records in {cache_name}.json")
 

@@ -29,7 +29,7 @@ class GithubAuth(Cog, name="GithubAuth"):
 
         self.bot = bot
         self.cache = cache
-        self.github_auth_flows: MutableMapping[str, Tuple[int, int]] = json_cache.register_cache(
+        self.github_auth_flows = json_cache.register_cache(
             "github_auth_flows", self.prune_auth_flows
         )  # state -> timestamp, discord id
 
@@ -109,7 +109,7 @@ class GithubAuth(Cog, name="GithubAuth"):
                 500,
             )
 
-        del self.github_auth_flows[params["state"]]
+        self.github_auth_flows.pop(params["state"])
 
         # get their name
         github_user = Github(response.json()["access_token"]).get_user()
@@ -137,7 +137,7 @@ class GithubAuth(Cog, name="GithubAuth"):
         # wrap in list to create a copy of items (we modify the dict in the loop)
         for key, auth_flow_data in list(current_auth_flows.items()):
             if current_time - auth_flow_data[0] >= 86400:
-                del github_auth_flows[key]
+                github_auth_flows.pop(key)
 
 
 __all__ = ["GithubAuth"]

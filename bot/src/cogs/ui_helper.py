@@ -87,7 +87,7 @@ class UIHelper(Cog):
                 self.buttons[str(message.id)] = []
 
             self.buttons[str(message.id)].append((component.custom_id, *self.pending[component.custom_id]))
-            del self.pending[component.custom_id]
+            self.pending.pop(component.custom_id)
 
     @Cog.listener()
     async def on_raw_message_delete(self, payload: RawMessageDeleteEvent) -> None:
@@ -151,11 +151,11 @@ class UIHelper(Cog):
                 continue
 
             self.buttons[message_id].append((button_id, *self.pending[button_id]))
-            del self.pending[button_id]
+            self.pending.pop(button_id)
 
         # if the length is 0, remove the message from the buttons dict
         if len(self.buttons[message_id]) == 0:
-            del self.buttons[message_id]
+            self.buttons.pop(message_id)
 
     @Cog.listener()
     async def on_interaction(self, interaction: Interaction) -> None:

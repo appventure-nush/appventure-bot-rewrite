@@ -38,7 +38,7 @@ class MSAuth(Cog, name="MSAuth"):
             authority=f"https://login.microsoftonline.com/{config.ms_auth_tenant_id}",
         )
 
-        self.auth_flows: MutableMapping[str, Tuple[int, int, Any]] = json_cache.register_cache(
+        self.auth_flows = json_cache.register_cache(
             "auth_flows", self.prune_auth_flows
         )  # state -> timestamp, discord id, flow
 
@@ -151,7 +151,7 @@ class MSAuth(Cog, name="MSAuth"):
 
         auth_flow = self.application.initiate_auth_code_flow(
             scopes=["User.Read"],
-            redirect_uri=f"{config.ms_auth_redirect_domain}",
+            redirect_uri=config.ms_auth_redirect_domain,
             state=state,
             response_mode="form_post",
         )
@@ -179,7 +179,7 @@ class MSAuth(Cog, name="MSAuth"):
                 500,
             )
 
-        del self.auth_flows[params["state"]]
+        self.auth_flows.pop(params["state"])
 
         # get their email and name
         user_data = requests.get(
@@ -324,7 +324,7 @@ class MSAuth(Cog, name="MSAuth"):
         # wrap in list to create a copy of items (we modify the dict in the loop)
         for key, auth_flow_data in list(current_auth_flows.items()):
             if current_time - auth_flow_data[0] >= 86400:
-                del auth_flows[key]
+                auth_flows.pop(key)
 
 
 __all__ = ["MSAuth"]
